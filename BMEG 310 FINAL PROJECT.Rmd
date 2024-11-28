@@ -1,6 +1,0 @@
----
-title: "BMEG 310 Final Project"
-author: "Jung Kyu Yoon"
-date: "2024-11-28"
-output: html_document
----
