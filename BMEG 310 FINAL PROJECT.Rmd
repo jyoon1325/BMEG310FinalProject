@@ -7,8 +7,30 @@ output: html_document
 
 https://github.com/jyoon1325/BMEG310FinalProject/blob/main/BMEG%20310%20FINAL%20PROJECT.Rmd 
 
+
+Clinical Data:
+1. Explore clinical data wrt the distribution based on various variable/attributes such as age, stage, survival, etc 
 ```{r}
 
 
 ```
+
+Mutation data:
+1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc) 
+2. Pick the top 20 or most frequently mutated genes from this matrix.  
+3. Perform clustering on the resulting mutation matrix Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
+4. Take the clusters of patients and do (a) DE analysis on all genes (not just top 500), (b) do pathway analysis on the DE genes that pass the adjusted p-value threshold (not just the top 20 genes) to see if specific pathways are hit, (c) see if outcome data between patient clusters is different, (d) see if any other clinical data is different when you compare patient clusters, (e) explore the correlation between the patient clusters that you have got from mutation and expression data - how much overlap do you see between the patient clusters?
+```{r}
+
+```
+
+Expression data:
+1. Normalize expression data using DEseq2. This was explained and included in the lab document. 
+2. Pick the top n (e.g., 500, 1000, ...) most variable genes. This could be done before step 1 or after step 1. 
+3. Perform clustering on the resulting expression matrix. Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
+4. Take the clusters of patients and do (a) DE analysis on all genes (not just top 500), (b) do pathway analysis on the DE genes that pass the adjusted p-value threshold (not just the top 20 genes) to see if specific pathways are hit, (c) see if outcome data between the patient clusters is different, (d) see if any other clinical data is different when you compare patient clusters, (e) see if patient clusters are enriched with any type of mutation data.   
+```{r}
+
+```
+
 
