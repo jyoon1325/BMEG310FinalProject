@@ -5,8 +5,10 @@ date: "2024-11-28"
 output: html_document
 ---
 
+https://github.com/jyoon1325/BMEG310FinalProject/blob/main/BMEG%20310%20FINAL%20PROJECT.Rmd 
 
 ```{r}
-#hello
+
+
 ```
 
