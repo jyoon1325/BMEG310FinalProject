@@ -7,6 +7,22 @@ output: html_document
 
 https://github.com/jyoon1325/BMEG310FinalProject/blob/main/BMEG%20310%20FINAL%20PROJECT.Rmd 
 
+Libraries:
+```{r}
+
+```
+
+
+
+Data:
+```{r}
+RNAseq_LIHC <- read.csv("RNAseq_LIHC.csv", header = TRUE, sep = "\t")
+data_clinical_patient <- read.delim("data_clinical_patient.txt", header = TRUE, sep = "\t")
+data_mutations <- read.delim("data_mutations.txt", header = TRUE, sep = "\t")
+
+```
+
+
 Analysis:
 1. Clinical Data
 2. Mutation Data
