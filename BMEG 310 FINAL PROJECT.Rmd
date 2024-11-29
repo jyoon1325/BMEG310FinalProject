@@ -9,7 +9,35 @@ https://github.com/jyoon1325/BMEG310FinalProject/blob/main/BMEG%20310%20FINAL%20
 
 Import libraries:
 ```{r}
+#Data manipulation
+library(dplyr)
+library(tidyr)
+library(Matrix)
 
+#Reading and writing files
+library(readr)
+library(data.table)
+
+#Data visualization
+library(pheatmap)
+library(ggplot2)
+
+#Clustering
+library(stats)
+library(cluster)
+library(factoextra)
+
+#Differential expression analysis
+library(DESeq2)
+
+#Pathway analysis
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+
+#Statistical testing
+library(survival)
+library(survminer)
 ```
 
 
