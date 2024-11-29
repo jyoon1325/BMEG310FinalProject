@@ -149,7 +149,7 @@ ggplot(data_clinical_patient, aes(x = as.numeric(Diagnosis.Age), fill = Neoplasm
   labs(title = "Age Distribution by Cancer Stage", x = "Age", y = "Frequency") +
   theme_minimal()
 ```
-
+Survival Analysis
 ```{r}
 # Prepare survival object
 surv_obj <- Surv(
