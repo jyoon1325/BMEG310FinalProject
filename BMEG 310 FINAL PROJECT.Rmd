@@ -135,7 +135,38 @@ ggplot(survival_status, aes(x = "", y = Count, fill = Overall.Survival.Status)) 
   coord_polar("y") +
   labs(title = "Overall Survival Status Distribution")
 ```
+Diagnosis Age by Survival Status
+```{r}
+ggplot(data_clinical_patient, aes(x = as.numeric(Diagnosis.Age), fill = Overall.Survival.Status)) +
+  geom_histogram() +
+  labs(title = "Age Distribution by Survival Status", x = "Age", y = "Frequency") +
+  theme_minimal()
+```
+Diagnosis Age by Cancer Stage
+```{r}
+ggplot(data_clinical_patient, aes(x = as.numeric(Diagnosis.Age), fill = Neoplasm.Disease.Stage.American.Joint.Committee.on.Cancer.Code)) +
+  geom_histogram() +
+  labs(title = "Age Distribution by Cancer Stage", x = "Age", y = "Frequency") +
+  theme_minimal()
+```
 
+```{r}
+# Prepare survival object
+surv_obj <- Surv(
+  time = as.numeric(data_clinical_patient$Overall.Survival..Months.),
+  event = data_clinical_patient$Overall.Survival.Status == "Deceased"
+)
+
+# Fit Kaplan-Meier curve
+fit <- survfit(surv_obj ~ 1, data = data_clinical_patient)
+
+# Plot survival curve
+ggsurvplot(
+  fit, data = data_clinical_patient,
+  title = "Kaplan-Meier Survival Curve",
+  xlab = "Time (Months)", ylab = "Survival Probability"
+)
+```
 
 Mutation data:
 1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc) 
