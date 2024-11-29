@@ -5,39 +5,76 @@ date: "2024-11-28"
 output: html_document
 ---
 
-https://github.com/jyoon1325/BMEG310FinalProject/blob/main/BMEG%20310%20FINAL%20PROJECT.Rmd 
+https://github.com/jyoon1325/BMEG310FinalProject.git
 
 Import libraries:
 ```{r}
-#Data manipulation
-library(dplyr)
-library(tidyr)
-library(Matrix)
+#all libraries from tutorials:
 
-#Reading and writing files
+#Introduction to R Basics
+library(graphics)
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("RColorBrewer")
+library(RColorBrewer)
+#install.packages("rmarkdown")
+library(rmarkdown)
+
+#Introduction to Machine Learning
+#install.packages("devtools")
+library(devtools)
+#install.packages("remotes")
+#remotes::install_github("vqv/ggbiplot")
+library(ggbiplot)
+suppressPackageStartupMessages(library(dplyr))
+#install.packages("readxl")
+library(readxl)#read_excel
+#install.packages("ISLR")
+require(ISLR)
+#install.packages("corrplot")
+library(corrplot)
+#install.packages("caret")
+library(caret)
+install.packages("randomForest")
+library(randomForest)
+
+#Introduction to Survival Analysis
+#BiocManager::install("TCGAbiolinks")
+library("TCGAbiolinks")
+#BiocManager::install("survival")
+library("survival")
+#BiocManager::install("survminer")
+library("survminer")
+library("SummarizedExperiment")
+
+#Introduction to Mutation Analysis
+# install.packages("pheatmap")
+library(pheatmap)
+
+#Introduction to Differential Analysis
+# BiocManager::install("AnnotationDbi")
+# BiocManager::install("org.Hs.eg.db")
+# BiocManager::install("pathview")
+# BiocManager::install("gage")
+# BiocManager::install("gageData")
+library("gridExtra")
+library(ggrepel)
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+library(pathview)
+library(gage)
+library(gageData)
+
+
+#Additional useful libraries:
+library(tidyr)
 library(readr)
 library(data.table)
-
-#Data visualization
-library(pheatmap)
-library(ggplot2)
-
-#Clustering
 library(stats)
 library(cluster)
 library(factoextra)
-
-#Differential expression analysis
-library(DESeq2)
-
-#Pathway analysis
-library(clusterProfiler)
 library(org.Hs.eg.db)
 library(enrichplot)
-
-#Statistical testing
-library(survival)
-library(survminer)
 ```
 
 
