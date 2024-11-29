@@ -7,19 +7,18 @@ output: html_document
 
 https://github.com/jyoon1325/BMEG310FinalProject/blob/main/BMEG%20310%20FINAL%20PROJECT.Rmd 
 
-Libraries:
+Import libraries:
 ```{r}
 
 ```
 
 
 
-Data:
+Import data:
 ```{r}
 RNAseq_LIHC <- read.csv("RNAseq_LIHC.csv", header = TRUE, sep = "\t")
 data_clinical_patient <- read.delim("data_clinical_patient.txt", header = TRUE, sep = "\t")
 data_mutations <- read.delim("data_mutations.txt", header = TRUE, sep = "\t")
-
 ```
 
 
