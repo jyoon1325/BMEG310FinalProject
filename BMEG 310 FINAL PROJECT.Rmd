@@ -86,6 +86,13 @@ data_clinical_patient <- read.delim("data_clinical_patient.txt", header = TRUE, 
 data_mutations <- read.delim("data_mutations.txt", header = TRUE, sep = "\t")
 ```
 
+summaries of data
+```{r}
+#summary(RNAseq_LIHC)
+#summary(data_clinical_patient)
+#summary(data_mutations)
+```
+
 
 Analysis:
 1. Clinical Data
@@ -95,9 +102,40 @@ Analysis:
 
 Clinical Data:
 1. Explore clinical data wrt the distribution based on various variable/attributes such as age, stage, survival, etc 
-```{r}
 
+Age Distribution
+```{r}
+#convert Diagnosis Age to numeric
+data_clinical_patient$Diagnosis.Age <- as.numeric(data_clinical_patient$Diagnosis.Age)
+
+#plot in a bar graph
+ggplot(data_clinical_patient, aes(x = Diagnosis.Age)) +
+  geom_histogram(fill = "blue", color = "black") +
+  labs(title = "Distribution of Diagnosis Age", x = "Age", y = "Frequency") +
+  theme_minimal()
 ```
+cancer stage Distribution
+```{r}
+ggplot(data_clinical_patient, aes(x = Neoplasm.Disease.Stage.American.Joint.Committee.on.Cancer.Code)) +
+  geom_bar(fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Cancer Stages", x = "Cancer Stage", y = "Frequency") +
+  theme_minimal()
+```
+Survival Status Distribution
+```{r}
+table(data_clinical_patient$Overall.Survival.Status)
+
+#count survival status
+survival_status <- as.data.frame(table(data_clinical_patient$Overall.Survival.Status))
+colnames(survival_status) <- c("Overall.Survival.Status", "Count")
+
+#plot survival status distribution
+ggplot(survival_status, aes(x = "", y = Count, fill = Overall.Survival.Status)) +
+  geom_bar(stat = "identity") +
+  coord_polar("y") +
+  labs(title = "Overall Survival Status Distribution")
+```
+
 
 Mutation data:
 1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc) 
