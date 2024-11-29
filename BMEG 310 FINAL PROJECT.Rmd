@@ -97,7 +97,6 @@ Clinical Data:
 1. Explore clinical data wrt the distribution based on various variable/attributes such as age, stage, survival, etc 
 ```{r}
 
-
 ```
 
 Mutation data:
