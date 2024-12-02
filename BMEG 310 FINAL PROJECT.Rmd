@@ -75,6 +75,7 @@ library(cluster)
 library(factoextra)
 library(org.Hs.eg.db)
 library(enrichplot)
+library(DESeq2)
 ```
 
 
@@ -228,57 +229,82 @@ Mutation data:
 
 1. gene-patient matrix that contains mutation data
 ```{r}
-#gene-patient mutation matrix
-mutation_matrix <- table(data_mutations$Hugo_Symbol, data_mutations$Tumor_Sample_Barcode)
-mutation_matrix[mutation_matrix > 1] <- 1
+#str(data_mutations)
 
-#convert to a data frame
-mutation_matrix_df <- as.data.frame.matrix(mutation_matrix)
+#matrix of genes (rows) and patients (columns)
+gene_patient_matrix <- table(data_mutations$Hugo_Symbol, data_mutations$Tumor_Sample_Barcode)
 
-mutation_matrix_df
+#convert to binary matrix (1 for mutation, 0 for no mutation)
+gene_patient_matrix <- as.matrix(gene_patient_matrix)
+gene_patient_matrix[gene_patient_matrix > 1] <- 1  # Ensure binary representation
 
 ```
 2. Pick the Top 20 Most Frequently Mutated Genes
 ```{r}
-#mutation frequency for each gene
-gene_mutation_counts <- rowSums(mutation_matrix_df)
+# Calculate the mutation frequency per gene
+mutation_frequency <- rowSums(gene_patient_matrix)
 
-#Sort genes by mutation frequency 
-sorted_genes <- sort(gene_mutation_counts, decreasing = TRUE)
+# Sort genes by mutation frequency in descending order
+sorted_genes <- sort(mutation_frequency, decreasing = TRUE)
 
-#select the top 20
+# Select the top 20 most frequently mutated genes
 top_genes <- names(sorted_genes[1:20])
 
-# Subset the mutation matrix for the top 20 genes
-top_gene_matrix <- mutation_matrix_df[top_genes, ]
+# Subset the gene-patient matrix for the top 20 genes
+top_gene_matrix <- gene_patient_matrix[top_genes, ]
 
 #top_gene_matrix
-
 ```
+
+
 3. Perform clustering on the resulting mutation matrix
 ```{r}
-#hierarchical clustering using ward.D2 linkage
-hc <- hclust(dist(top_gene_matrix), method = "ward.D2")
+# Perform hierarchical clustering on the transposed matrix to cluster patients
+hc_patients <- hclust(dist(t(top_gene_matrix)), method = "ward.D2")
 
-#dendrogram
-plot(hc, main = "Hierarchical Clustering (Ward.D2)", xlab = "Patients")
+# Plot the dendrogram for patient clustering
+plot(hc_patients, main = "Hierarchical Clustering of Patients", xlab = "Patients", sub = "", cex = 0.8)
+
+# Cut the dendrogram into clusters (e.g., 3 clusters)
+patient_clusters <- cutree(hc_patients, k = 3)
+
+# Create a data frame mapping patients to clusters
+clustered_patients <- data.frame(
+  Patient = colnames(top_gene_matrix),
+  Cluster = patient_clusters,
+  stringsAsFactors = FALSE
+)
 
 ```
 4a. Differential Expression (DE) Analysis
 ```{r}
-#kvalue :) 
-cluster_groups <- cutree(hc, k = 3)
+# Ensure RNAseq_LIHC is numeric and handle missing values
+if (!is.numeric(RNAseq_LIHC)) {
+  RNAseq_LIHC <- as.matrix(RNAseq_LIHC)  # Convert to matrix if not already
+  mode(RNAseq_LIHC) <- "numeric"         # Ensure numeric values
+}
+RNAseq_LIHC[is.na(RNAseq_LIHC)] <- 0     # Replace NA values with 0
 
-#data frame to map patients to clusters
-clustered_patients <- data.frame(Patient = colnames(top_gene_matrix), Cluster = cluster_groups, stringsAsFactors = FALSE)
+# Match patient identifiers between RNAseq_LIHC and clustered_patients
+common_patients <- intersect(colnames(RNAseq_LIHC), clustered_patients$Patient)
+RNAseq_LIHC <- RNAseq_LIHC[, common_patients]  # Subset RNAseq_LIHC for matching patients
+clustered_patients <- clustered_patients[clustered_patients$Patient %in% common_patients, ]
+rownames(clustered_patients) <- clustered_patients$Patient  # Set rownames for DESeq2 compatibility
 
-# DE Analysis with expression data
+# Perform DESeq2 analysis
 library(DESeq2)
-col_data <- clustered_patients
-rownames(col_data) <- col_data$Patient
-dds <- DESeqDataSetFromMatrix(countData = RNAseq_LIHC, colData = col_data, design = ~ Cluster)
+dds <- DESeqDataSetFromMatrix(countData = RNAseq_LIHC, colData = clustered_patients, design = ~ Cluster)
 dds <- DESeq(dds)
 res <- results(dds)
+
+# Filter significant DE genes by adjusted p-value
+de_genes <- rownames(res[which(res$padj < 0.05), ])
+
+# Output a summary of DE results
+summary(res)
+
+# View top DE genes
+head(de_genes)
 
 ```
 
