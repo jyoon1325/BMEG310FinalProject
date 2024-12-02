@@ -117,7 +117,7 @@ ggplot(data_clinical_patient, aes(x = Diagnosis.Age)) +
 cancer stage Distribution
 ```{r}
 ggplot(data_clinical_patient, aes(x = Neoplasm.Disease.Stage.American.Joint.Committee.on.Cancer.Code)) +
-  geom_bar(fill = "blue", color = "black", alpha = 0.7) +
+  geom_bar(fill = "blue", color = "black") +
   labs(title = "Distribution of Cancer Stages", x = "Cancer Stage", y = "Frequency") +
   theme_minimal()
 ```
@@ -164,9 +164,9 @@ if (sum(is.na(data_clinical_patient$Overall.Survival..Months.)) > 0) {
     median(data_clinical_patient$Overall.Survival..Months., na.rm = TRUE)
 }
 
-# summary(data_clinical_patient$Overall.Survival..Months.)
+#summary(data_clinical_patient$Overall.Survival..Months.)
 
-#Create Survival Object
+#make Survival Object
 surv_obj <- Surv(
   time = data_clinical_patient$Overall.Survival..Months.,
   event = data_clinical_patient$Overall.Survival.Status == "Deceased"
@@ -216,7 +216,7 @@ hist(
   main = "Survival Time Distribution",
   xlab = "Time (Months)",
   breaks = 30,
-  col = "skyblue"
+  col = "blue"
 )
 ```
 
@@ -225,9 +225,63 @@ Mutation data:
 2. Pick the top 20 or most frequently mutated genes from this matrix.  
 3. Perform clustering on the resulting mutation matrix Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
 4. Take the clusters of patients and do (a) DE analysis on all genes (not just top 500), (b) do pathway analysis on the DE genes that pass the adjusted p-value threshold (not just the top 20 genes) to see if specific pathways are hit, (c) see if outcome data between patient clusters is different, (d) see if any other clinical data is different when you compare patient clusters, (e) explore the correlation between the patient clusters that you have got from mutation and expression data - how much overlap do you see between the patient clusters?
+
+1. gene-patient matrix that contains mutation data
 ```{r}
+#gene-patient mutation matrix
+mutation_matrix <- table(data_mutations$Hugo_Symbol, data_mutations$Tumor_Sample_Barcode)
+mutation_matrix[mutation_matrix > 1] <- 1
+
+#convert to a data frame
+mutation_matrix_df <- as.data.frame.matrix(mutation_matrix)
+
+mutation_matrix_df
 
 ```
+2. Pick the Top 20 Most Frequently Mutated Genes
+```{r}
+#mutation frequency for each gene
+gene_mutation_counts <- rowSums(mutation_matrix_df)
+
+#Sort genes by mutation frequency 
+sorted_genes <- sort(gene_mutation_counts, decreasing = TRUE)
+
+#select the top 20
+top_genes <- names(sorted_genes[1:20])
+
+# Subset the mutation matrix for the top 20 genes
+top_gene_matrix <- mutation_matrix_df[top_genes, ]
+
+#top_gene_matrix
+
+```
+3. Perform clustering on the resulting mutation matrix
+```{r}
+#hierarchical clustering using ward.D2 linkage
+hc <- hclust(dist(top_gene_matrix), method = "ward.D2")
+
+#dendrogram
+plot(hc, main = "Hierarchical Clustering (Ward.D2)", xlab = "Patients")
+
+```
+4a. Differential Expression (DE) Analysis
+```{r}
+#kvalue :) 
+cluster_groups <- cutree(hc, k = 3)
+
+#data frame to map patients to clusters
+clustered_patients <- data.frame(Patient = colnames(top_gene_matrix), Cluster = cluster_groups, stringsAsFactors = FALSE)
+
+# DE Analysis with expression data
+library(DESeq2)
+col_data <- clustered_patients
+rownames(col_data) <- col_data$Patient
+dds <- DESeqDataSetFromMatrix(countData = RNAseq_LIHC, colData = col_data, design = ~ Cluster)
+dds <- DESeq(dds)
+res <- results(dds)
+
+```
+
 
 Expression data:
 1. Normalize expression data using DEseq2. This was explained and included in the lab document. 
