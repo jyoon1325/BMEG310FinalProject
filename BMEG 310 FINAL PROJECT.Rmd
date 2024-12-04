@@ -368,17 +368,16 @@ ________________________________________________________________________________
 
 1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc)
 ```{r}
-# Filter the dataset for specific mutation types (e.g., nonsynonymous mutations)
-filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% 
-                                         c("missense_variant", "nonsense_variant", "frameshift_variant"), ]
+#filter the dataset for specific mutation types
+filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% c("missense_variant", "nonsense_variant", "frameshift_variant"), ]
 
-# Extract the relevant columns: Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode)
+#extract columns: Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode)
 gene_patient_data <- filtered_mutations[, c("Hugo_Symbol", "Tumor_Sample_Barcode")]
 
-# Add a binary column for the presence of a mutation
+#binary column for the presence of a mutation
 gene_patient_data$mutated <- 1
 
-# Create a wide-format matrix with genes as rows and patients as columns
+#matrix with genes as rows and patients as columns
 gene_patient_matrix <- reshape(
   data = gene_patient_data,
   timevar = "Tumor_Sample_Barcode",
@@ -386,66 +385,62 @@ gene_patient_matrix <- reshape(
   direction = "wide"
 )
 
-# Replace NA values with 0, indicating no mutation
+#Replace NA values with 0 (no mutation)
 gene_patient_matrix[is.na(gene_patient_matrix)] <- 0
 
-# Clean column names to remove redundant "mutated." prefix
+#clean column names to remove redundant "mutated."
 colnames(gene_patient_matrix) <- sub("mutated\\.", "", colnames(gene_patient_matrix))
 
-# View the resulting matrix
-head(gene_patient_matrix)
+#matrix:
+#head(gene_patient_matrix)
 ```
 
 2. Pick the top 20 or most frequently mutated genes from this matrix.  
 ```{r}
-# Calculate the total number of mutations for each gene (row sums)
+#total number of mutations for each gene (row sums)
 gene_mutation_counts <- rowSums(gene_patient_matrix[, -1])  # Exclude the gene column (first column)
 
-# Add mutation counts to the gene-patient matrix for reference
+#add mutation counts to the gene-patient matrix
 gene_patient_matrix <- cbind(Hugo_Symbol = rownames(gene_patient_matrix), gene_patient_matrix)
 
-# Sort genes by mutation counts in descending order
+#sort genes by mutation counts (descending order)
 sorted_genes <- gene_patient_matrix[order(-gene_mutation_counts), ]
 
-# Select the top 20 most frequently mutated genes
+#top 20 most frequently mutated genes
 top_20_genes <- sorted_genes[1:20, ]
 
-# View the top 20 genes
-print(top_20_genes)
+#print(top_20_genes)
 ```
 
 3. Perform clustering on the resulting mutation matrix Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
 ```{r}
-# Load required library
 library(cluster)
 library(factoextra)
 
-# Extract the mutation matrix for the top 20 genes (removing the first column which contains gene names)
-mutation_matrix_top20 <- as.matrix(top_20_genes[, -1])  # Exclude the Hugo_Symbol column
+#mutation matrix for the top 20 genes (removing the first column which contains gene names)
+mutation_matrix_top20 <- as.matrix(top_20_genes[, -1])
 
-# Compute the distance matrix using Euclidean distance
+#distance matrix using Euclidean distance
 distance_matrix <- dist(mutation_matrix_top20, method = "euclidean")
 
-# Perform hierarchical clustering with ward.D method
+#hierarchical clustering ward.D method
 hc_ward <- hclust(distance_matrix, method = "ward.D")
 
-# Perform hierarchical clustering with ward.D2 method
+#hierarchical clustering ward.D2 method
 hc_wardD2 <- hclust(distance_matrix, method = "ward.D2")
 
-# Plot dendrograms
+# dendrograms
 par(mfrow = c(1, 2))  # Arrange plots side by side
 
-# Plot ward.D
+#ward.D
 plot(hc_ward, main = "Dendrogram (Ward.D Method)", sub = "", xlab = "Genes", ylab = "Height")
 
-# Plot ward.D2
+# ward.D2
 plot(hc_wardD2, main = "Dendrogram (Ward.D2 Method)", sub = "", xlab = "Genes", ylab = "Height")
 
-# Use cutree to get clusters if needed (e.g., cut into 3 clusters)
 clusters_ward <- cutree(hc_ward, k = 3)
 clusters_wardD2 <- cutree(hc_wardD2, k = 3)
 
-# Print cluster assignments
 print("Clusters from Ward.D:")
 print(clusters_ward)
 
