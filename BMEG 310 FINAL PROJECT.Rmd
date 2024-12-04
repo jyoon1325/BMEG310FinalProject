@@ -77,14 +77,20 @@ library(org.Hs.eg.db)
 library(enrichplot)
 library(DESeq2)
 library (dplyr)
+library(TCGAbiolinks)
+
+
+
+
+results = "hide"
 ```
 
 
 Import data:
 ```{r}
-RNAseq_LIHC <- read.csv("RNAseq_LIHC.csv", header = TRUE, sep = "\t")
-data_clinical_patient <- read.table("data_clinical_patient.txt", header = TRUE, sep = "\t")
-data_mutations <- read.table("data_mutations.txt", header = TRUE, sep = "\t")
+RNA.data <- read.csv("RNAseq_LIHC.csv")
+patient.data <- read.table("data_clinical_patient.txt", header = TRUE, sep = "\t")
+mutations.data <- read.table("data_mutations.txt", header = TRUE, sep = "\t")
 ```
 
 summaries of data
@@ -92,48 +98,74 @@ summaries of data
 #summary(RNAseq_LIHC)
 #summary(data_clinical_patient)
 #summary(data_mutations)
+#colnames(RNA.data)
+#colnames(patient.data)
+#colnames(mutations.data)
 ```
 
 
 filter data
 ```{r}
-# Ensure patient, mutations, and RNAseq data have consistent identifiers
-data_clinical_patient$PATIENT_ID <- substr(data_clinical_patient$PATIENT_ID, 9, 12)
-data_mutations$Tumor_Sample_Barcode <- substr(data_mutations$Tumor_Sample_Barcode, 9, 12)
-colnames(RNAseq_LIHC) <- substr(colnames(RNAseq_LIHC), 9, 12)
+patient_df<-patient.data
+patient_df$PATIENT_ID<-substr(patient_df$PATIENT_ID,9,12)
 
-# Identify unique patients across datasets
-unique_patients <- unique(data_clinical_patient$PATIENT_ID)
-unique_mutations <- unique(data_mutations$Tumor_Sample_Barcode)
-unique_RNA <- unique(colnames(RNAseq_LIHC))
+mutations_df<-mutations.data
+mutations_df$Tumor_Sample_Barcode<-substr(mutations_df$Tumor_Sample_Barcode,9,12)
 
-# Find common patients across all three datasets
-common_patients <- Reduce(intersect, list(unique_patients, unique_mutations, unique_RNA))
+#make copy of RNA data frame without the first column
+RNA_df <- RNA.data[,-1]
 
-# Filter clinical data for common patients
-filtered_clinical_patient <- data_clinical_patient[data_clinical_patient$PATIENT_ID %in% common_patients, ]
+#rename columns to match patient id naming convention of other data sets
+colnames(RNA_df)<-substr(colnames(RNA_df),9,12)
 
-# Filter mutation data for common patients
-filtered_mutations <- data_mutations[data_mutations$Tumor_Sample_Barcode %in% common_patients, ]
+#find unique patients
+unique_patients<-unique(patient_df$PATIENT_ID)
+unique_mutations<-unique(mutations_df$Tumor_Sample_Barcode)
+unique_RNA<-unique(colnames(RNA_df))
+#find common patients
+common_patients<-Reduce(intersect, list(unique_patients,unique_mutations,unique_RNA))
 
-# Filter RNAseq data for common patients
-filtered_RNAseq <- RNAseq_LIHC[, colnames(RNAseq_LIHC) %in% common_patients]
+#patient data with patients in all three data sets
+unq_patient_df<-patient_df[patient_df$PATIENT_ID %in% common_patients,]
 
-# Remove censored patients from clinical, mutation, and RNAseq data
-censored_patients <- filtered_clinical_patient %>%
+#mutation data with patients in all three data sets
+unq_mutations_df<-mutations_df[mutations_df$Tumor_Sample_Barcode %in% common_patients,]
+
+#RNA data with patients in all three data sets
+unq_RNA_ID<-RNA_df[, colnames(RNA_df)%in% common_patients]
+
+#add back the first column (X) from the RNA data frame
+RNA_df$X<-RNA.data$X[match(rownames(RNA_df), rownames(RNA.data))] 
+
+#Take out censored patients
+
+censored_patients <-  unq_patient_df %>%
   filter(PFS_STATUS == "0:CENSORED") %>%
   pull(PATIENT_ID)
 
-filtered_clinical_patient <- filtered_clinical_patient[!filtered_clinical_patient$PATIENT_ID %in% censored_patients, ]
-filtered_mutations <- filtered_mutations[!filtered_mutations$Tumor_Sample_Barcode %in% censored_patients, ]
-filtered_RNAseq <- filtered_RNAseq[, !colnames(filtered_RNAseq) %in% censored_patients]
+unq_patient_df<-unq_patient_df[!unq_patient_df$PATIENT_ID %in% censored_patients,]
 
-# Ensure mutation data excludes low-impact mutations
-filtered_mutations$IMPACT <- as.character(filtered_mutations$IMPACT)
-filtered_mutations <- subset(filtered_mutations, IMPACT != "LOW")
+unq_mutations_df <-  unq_mutations_df[!unq_mutations_df$Tumor_Sample_Barcode %in% censored_patients,]
+
+RNA_df <- RNA_df[, !colnames(RNA_df) %in% censored_patients]
+
+
+unq_mutations_df$IMPACT <- as.character(unq_mutations_df$IMPACT)
+
+#Take out Low impact mutations
+filtered_mutations <- subset(unq_mutations_df, IMPACT != "LOW")
+
+
+unique(filtered_mutations$IMPACT)
 
 ```
+Summaries
+```{r}
+summary(unq_patient_df)
+#summary(filtered_mutations)
+#summary(unq_RNA_ID)
 
+```
 
 
 
@@ -149,150 +181,151 @@ Analysis:
 _______________________________________________________________________________________________________________________________________
 
 
+
+
+
+
+
+_______________________________________________________________________________________________________________________________________
 Clinical Data:
 1. Explore clinical data wrt the distribution based on various variable/attributes such as age, stage, survival, etc 
+_______________________________________________________________________________________________________________________________________
 
 Age Distribution
 ```{r}
-#convert Diagnosis Age to numeric
-data_clinical_patient$Diagnosis.Age <- as.numeric(data_clinical_patient$Diagnosis.Age)
-
-#plot in a bar graph
-ggplot(data_clinical_patient, aes(x = Diagnosis.Age)) +
-  geom_histogram(fill = "blue", color = "black") +
-  labs(title = "Distribution of Diagnosis Age", x = "Age", y = "Frequency") +
+ggplot(unq_patient_df, aes(x = AGE)) +
+  geom_histogram(binwidth = 5, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Age Distribution", x = "Age", y = "Count") +
   theme_minimal()
 ```
 cancer stage Distribution
 ```{r}
-ggplot(data_clinical_patient, aes(x = Neoplasm.Disease.Stage.American.Joint.Committee.on.Cancer.Code)) +
-  geom_bar(fill = "blue", color = "black") +
-  labs(title = "Distribution of Cancer Stages", x = "Cancer Stage", y = "Frequency") +
+ggplot(unq_patient_df, aes(x = AGE, fill = OS_STATUS)) +
+  geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
+  labs(title = "Age Distribution by Overall Survival Status", x = "Age", y = "Count", fill = "OS Status") +
+  theme_minimal()
+
+```
+
+Age vs Overall Survival (OS) Status
+```{r}
+ggplot(unq_patient_df, aes(x = AGE, fill = OS_STATUS)) +
+  geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
+  labs(title = "Age Distribution by Overall Survival Status", x = "Age", y = "Count", fill = "OS Status") +
   theme_minimal()
 ```
-Survival Status Distribution
+Age vs Progression-Free Survival (PFS) Status
 ```{r}
-table(data_clinical_patient$Overall.Survival.Status)
-
-#count survival status
-survival_status <- as.data.frame(table(data_clinical_patient$Overall.Survival.Status))
-colnames(survival_status) <- c("Overall.Survival.Status", "Count")
-
-#plot survival status distribution
-ggplot(survival_status, aes(x = "", y = Count, fill = Overall.Survival.Status)) +
-  geom_bar(stat = "identity") +
-  coord_polar("y") +
-  labs(title = "Overall Survival Status Distribution")
-```
-Diagnosis Age by Survival Status
-```{r}
-ggplot(data_clinical_patient, aes(x = as.numeric(Diagnosis.Age), fill = Overall.Survival.Status)) +
-  geom_histogram() +
-  labs(title = "Age Distribution by Survival Status", x = "Age", y = "Frequency") +
+ggplot(unq_patient_df, aes(x = AGE, fill = PFS_STATUS)) +
+  geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
+  labs(title = "Age Distribution by Progression-Free Survival Status", x = "Age", y = "Count", fill = "PFS Status") +
   theme_minimal()
 ```
-Diagnosis Age by Cancer Stage
+Age Distribution with Boxplot Grouped by Tumor Stage
 ```{r}
-ggplot(data_clinical_patient, aes(x = as.numeric(Diagnosis.Age), fill = Neoplasm.Disease.Stage.American.Joint.Committee.on.Cancer.Code)) +
-  geom_histogram() +
-  labs(title = "Age Distribution by Cancer Stage", x = "Age", y = "Frequency") +
+ggplot(unq_patient_df, aes(x = AJCC_PATHOLOGIC_TUMOR_STAGE, y = AGE, fill = AJCC_PATHOLOGIC_TUMOR_STAGE)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title = "Age Distribution by Tumor Stage", x = "Tumor Stage", y = "Age") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+Survival Distribution by Age
+```{r}
+ggplot(unq_patient_df, aes(x = AGE, fill = DSS_STATUS)) +
+  geom_histogram(binwidth = 5, position = "stack", alpha = 0.7) +
+  labs(title = "Age Distribution by Disease-Specific Survival Status", x = "Age", y = "Count", fill = "DSS Status") +
   theme_minimal()
 ```
-Survival Analysis
-Kaplan-Meier Survival Curve
 
+Survival analysis
+Prepare Data
 ```{r}
-# Create a survival object
-data_clinical_patient$Overall.Survival..Months. <- as.numeric(as.character(data_clinical_patient$Overall.Survival..Months.))
-data_clinical_patient <- data_clinical_patient %>%
-  mutate(Overall.Survival..Months. = ifelse(is.na(Overall.Survival..Months.), median(Overall.Survival..Months., na.rm = TRUE), Overall.Survival..Months.))
+# Prepare survival data
+unq_patient_df <- unq_patient_df %>%
+  mutate(
+    # Convert OS_STATUS to a logical deceased indicator
+    deceased = ifelse(OS_STATUS == "1:DECEASED", TRUE, FALSE),
+    # Ensure OS_MONTHS is numeric
+    overall_survival = as.numeric(OS_MONTHS)
+  )
+```
+Kaplan-Meier Analysis by Gender
+```{r}
+# Fit a survival model for gender
+fit_gender <- survfit(Surv(overall_survival, deceased) ~ gender, data = clin_df)
 
-surv_obj <- Surv(data_clinical_patient$Overall.Survival..Months., data_clinical_patient$Overall.Survival.Status == "Deceased")
+# Kaplan-Meier plot for gender
+ggsurvplot(fit_gender, data = clin_df, pval = TRUE, risk.table = TRUE, risk.table.col = "strata", risk.table.height = 0.3)
+```
+Kaplan-Meier Analysis by Tumor Stage
+```{r}
+# Simplify AJCC_PATHOLOGIC_TUMOR_STAGE by removing sub-stages
+unq_patient_df <- unq_patient_df %>%
+  mutate(tumor_stage = gsub("[abc]$", "", AJCC_PATHOLOGIC_TUMOR_STAGE))
 
-# Fit and plot Kaplan-Meier curve
-fit <- survfit(surv_obj ~ 1, data = data_clinical_patient)
-ggsurvplot(
-  fit,
-  data = data_clinical_patient,
-  title = "Kaplan-Meier Survival Curve",
-  xlab = "Time (Months)",
-  ylab = "Survival Probability",
-  conf.int = TRUE,
-  risk.table = TRUE,
-  ggtheme = theme_minimal()
-)
+# Fit survival model by tumor stage
+fit_stage <- survfit(Surv(overall_survival, deceased) ~ tumor_stage, data = unq_patient_df)
+
+# Plot Kaplan-Meier survival curves
+ggsurvplot(fit_stage, 
+           data = unq_patient_df, 
+           pval = TRUE, 
+           risk.table = TRUE, 
+           risk.table.col = "strata", 
+           risk.table.height = 0.3,
+           title = "Survival by Tumor Stage")
+
+```
+Kaplan-Meier Analysis by Race
+```{r}
+# Group races into "white", "asian", "black", and "others"
+unq_patient_df <- unq_patient_df %>%
+  mutate(race_group = ifelse(RACE %in% c("white", "asian", "black or african american"), RACE, "others"))
+
+# Fit survival model by race group
+fit_race <- survfit(Surv(overall_survival, deceased) ~ race_group, data = unq_patient_df)
+
+# Plot Kaplan-Meier survival curves
+ggsurvplot(fit_race, 
+           data = unq_patient_df, 
+           pval = TRUE, 
+           risk.table = TRUE, 
+           risk.table.col = "strata", 
+           risk.table.height = 0.3,
+           title = "Survival by Race Group")
+
+```
+Kaplan-Meier Survival Analysis by Age Group
+```{r}
+# Create age groups
+unq_patient_df <- unq_patient_df %>%
+  mutate(age_group = case_when(
+    AGE < 50 ~ "<50",
+    AGE >= 50 & AGE < 65 ~ "50-65",
+    AGE >= 65 ~ "65+"
+  ))
+
+# Fit survival model by age group
+fit_age <- survfit(Surv(overall_survival, deceased) ~ age_group, data = unq_patient_df)
+
+# Plot Kaplan-Meier survival curves
+ggsurvplot(fit_age, 
+           data = unq_patient_df, 
+           pval = TRUE, 
+           risk.table = TRUE, 
+           risk.table.col = "strata", 
+           risk.table.height = 0.3,
+           title = "Survival by Age Group")
 
 ```
 
-```{r}
-# Check the structure and unique values in the survival time column
-str(data_clinical_patient$Overall.Survival..Months.)
-unique(data_clinical_patient$Overall.Survival..Months.)
 
-# Convert 'Overall.Survival..Months.' to numeric, handling non-numeric values
-data_clinical_patient$Overall.Survival..Months. <- as.numeric(as.character(data_clinical_patient$Overall.Survival..Months.))
 
-# Check for and handle NAs (w/o it, problems occur later on)
-if (sum(is.na(data_clinical_patient$Overall.Survival..Months.)) > 0) {
-  data_clinical_patient$Overall.Survival..Months.[is.na(data_clinical_patient$Overall.Survival..Months.)] <- 
-    median(data_clinical_patient$Overall.Survival..Months., na.rm = TRUE)
-}
 
-#summary(data_clinical_patient$Overall.Survival..Months.)
 
-#make Survival Object
-surv_obj <- Surv(
-  time = data_clinical_patient$Overall.Survival..Months.,
-  event = data_clinical_patient$Overall.Survival.Status == "Deceased"
-)
 
-#inspect
-#str(surv_obj)
 
-#Kaplan-Meier Survival Curve
-# Fit Kaplan-Meier survival curve
-fit <- survfit(surv_obj ~ 1, data = data_clinical_patient)
 
-#Plot Kaplan-Meier survival curve
-ggsurvplot(
-  fit, data = data_clinical_patient,
-  title = "Kaplan-Meier Survival Curve",
-  xlab = "Time (Months)",
-  ylab = "Survival Probability",
-  conf.int = TRUE,   # Show confidence intervals
-  risk.table = TRUE, # Show the risk table
-  ggtheme = theme_minimal()
-)
-
-#Stratify by Cancer Stage
-# Fit survival curve by cancer stage
-fit_stage <- survfit(surv_obj ~ Neoplasm.Disease.Stage.American.Joint.Committee.on.Cancer.Code, data = data_clinical_patient)
-
-# Plot stratified survival curves
-ggsurvplot(
-  fit_stage, data = data_clinical_patient,
-  title = "Kaplan-Meier Survival Curve by Cancer Stage",
-  xlab = "Time (Months)",
-  ylab = "Survival Probability",
-  conf.int = TRUE,
-  risk.table = TRUE,
-  legend.title = "Cancer Stage",
-  ggtheme = theme_minimal()
-)
-
-#Statistical Test - Log-Rank Test
-#log_rank_test <- survdiff(surv_obj ~ Neoplasm.Disease.Stage.American.Joint.Committee.on.Cancer.Code, data = data_clinical_patient)
-#print(log_rank_test)
-
-#Data Quality Histogram of Survival Times
-hist(
-  data_clinical_patient$Overall.Survival..Months.,
-  main = "Survival Time Distribution",
-  xlab = "Time (Months)",
-  breaks = 30,
-  col = "blue"
-)
-```
 
 Mutation data:
 1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc) 
