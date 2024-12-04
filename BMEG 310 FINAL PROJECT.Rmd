@@ -161,8 +161,8 @@ unique(filtered_mutations$IMPACT)
 ```
 Summaries
 ```{r}
-summary(unq_patient_df)
-#summary(filtered_mutations)
+#summary(unq_patient_df)
+summary(filtered_mutations)
 #summary(unq_RNA_ID)
 
 ```
@@ -202,23 +202,23 @@ cancer stage Distribution
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = OS_STATUS)) +
   geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
-  labs(title = "Age Distribution by Overall Survival Status", x = "Age", y = "Count", fill = "OS Status") +
+  labs(title = "Age Distribution by Overall Survival Status", x = "Age", y = "Count", fill = "Overall Survival Status") +
   theme_minimal()
 
 ```
 
-Age vs Overall Survival (OS) Status
+Age vs Overall Survival
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = OS_STATUS)) +
   geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
-  labs(title = "Age Distribution by Overall Survival Status", x = "Age", y = "Count", fill = "OS Status") +
+  labs(title = "Age Distribution by Overall Survival", x = "Age", y = "Count", fill = "Overall Survival") +
   theme_minimal()
 ```
 Age vs Progression-Free Survival (PFS) Status
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = PFS_STATUS)) +
   geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
-  labs(title = "Age Distribution by Progression-Free Survival Status", x = "Age", y = "Count", fill = "PFS Status") +
+  labs(title = "Age Distribution by Progression-Free Survival Status", x = "Age", y = "Count", fill = "Progression-Free Survival Status") +
   theme_minimal()
 ```
 Age Distribution with Boxplot Grouped by Tumor Stage
@@ -233,40 +233,75 @@ Survival Distribution by Age
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = DSS_STATUS)) +
   geom_histogram(binwidth = 5, position = "stack", alpha = 0.7) +
-  labs(title = "Age Distribution by Disease-Specific Survival Status", x = "Age", y = "Count", fill = "DSS Status") +
+  labs(title = "Age Distribution by Disease-Specific Survival Status", x = "Age", y = "Count", fill = "Disease-Specific Survival Status") +
   theme_minimal()
 ```
 
 Survival analysis
 Prepare Data
 ```{r}
-# Prepare survival data
+#survival data
 unq_patient_df <- unq_patient_df %>%
   mutate(
-    # Convert OS_STATUS to a logical deceased indicator
+    #convert OS_STATUS to a logical deceased indicator
     deceased = ifelse(OS_STATUS == "1:DECEASED", TRUE, FALSE),
-    # Ensure OS_MONTHS is numeric
+    #convert OS_MONTHS to numeric
     overall_survival = as.numeric(OS_MONTHS)
   )
 ```
+
 Kaplan-Meier Analysis by Gender
 ```{r}
-# Fit a survival model for gender
-fit_gender <- survfit(Surv(overall_survival, deceased) ~ gender, data = clin_df)
+#fit survival model for gender
+fit_gender <- survfit(Surv(overall_survival, deceased) ~ SEX, data = unq_patient_df)
 
-# Kaplan-Meier plot for gender
-ggsurvplot(fit_gender, data = clin_df, pval = TRUE, risk.table = TRUE, risk.table.col = "strata", risk.table.height = 0.3)
+#Kaplan-Meier plot for gender
+ggsurvplot(fit_gender, data = unq_patient_df, pval = TRUE, risk.table = TRUE, risk.table.col = "strata", risk.table.height = 0.3)
 ```
+
+Kaplan-Meier Analysis by Weight
+```{r}
+# categorize patients by weight
+unq_patient_df <- unq_patient_df %>%
+  mutate(weight_group = case_when(
+    WEIGHT < 50 ~ "Underweight",
+    WEIGHT >= 50 & WEIGHT < 70 ~ "Normal weight",
+    WEIGHT >= 70 & WEIGHT < 90 ~ "Overweight",
+    WEIGHT >= 90 ~ "Obese",
+    is.na(WEIGHT) ~ "Unknown"
+  ))
+
+#exclude patients with unknown weight
+unq_patient_df_filtered <- unq_patient_df %>%
+  filter(weight_group != "Unknown")
+
+#fit survival model for weight groups
+fit_weight <- survfit(Surv(overall_survival, deceased) ~ weight_group, data = unq_patient_df_filtered)
+
+#Kaplan-Meier for weight groups
+ggsurvplot(fit_weight, 
+           data = unq_patient_df_filtered, 
+           pval = TRUE,                        # Display p-value for log-rank test
+           risk.table = TRUE,                  # Add risk table below the plot
+           risk.table.col = "strata",          # Color risk table by strata
+           risk.table.height = 0.3,            # Adjust risk table height
+           title = "Kaplan-Meier Survival Analysis by Weight Group",
+           xlab = "Time (Months)", 
+           ylab = "Survival Probability")
+
+```
+
+
 Kaplan-Meier Analysis by Tumor Stage
 ```{r}
-# Simplify AJCC_PATHOLOGIC_TUMOR_STAGE by removing sub-stages
+# remove sub-stages of AJCC_PATHOLOGIC_TUMOR_STAGE
 unq_patient_df <- unq_patient_df %>%
   mutate(tumor_stage = gsub("[abc]$", "", AJCC_PATHOLOGIC_TUMOR_STAGE))
 
-# Fit survival model by tumor stage
+#fit survival model by tumor stage
 fit_stage <- survfit(Surv(overall_survival, deceased) ~ tumor_stage, data = unq_patient_df)
 
-# Plot Kaplan-Meier survival curves
+#Kaplan-Meier for tumor stage
 ggsurvplot(fit_stage, 
            data = unq_patient_df, 
            pval = TRUE, 
@@ -276,16 +311,17 @@ ggsurvplot(fit_stage,
            title = "Survival by Tumor Stage")
 
 ```
-Kaplan-Meier Analysis by Race
+Kaplan-Meier Analysis by race
 ```{r}
-# Group races into "white", "asian", "black", and "others"
+#Group races 
+  #"white", "asian", "black", and "others"...?
 unq_patient_df <- unq_patient_df %>%
   mutate(race_group = ifelse(RACE %in% c("white", "asian", "black or african american"), RACE, "others"))
 
-# Fit survival model by race group
+#fit survival model by race group
 fit_race <- survfit(Surv(overall_survival, deceased) ~ race_group, data = unq_patient_df)
 
-# Plot Kaplan-Meier survival curves
+#Kaplan-Meier plot for race
 ggsurvplot(fit_race, 
            data = unq_patient_df, 
            pval = TRUE, 
@@ -297,7 +333,7 @@ ggsurvplot(fit_race,
 ```
 Kaplan-Meier Survival Analysis by Age Group
 ```{r}
-# Create age groups
+# age groups
 unq_patient_df <- unq_patient_df %>%
   mutate(age_group = case_when(
     AGE < 50 ~ "<50",
@@ -305,10 +341,10 @@ unq_patient_df <- unq_patient_df %>%
     AGE >= 65 ~ "65+"
   ))
 
-# Fit survival model by age group
+#fit survival model by age group
 fit_age <- survfit(Surv(overall_survival, deceased) ~ age_group, data = unq_patient_df)
 
-# Plot Kaplan-Meier survival curves
+#Kaplan-Meier
 ggsurvplot(fit_age, 
            data = unq_patient_df, 
            pval = TRUE, 
@@ -318,13 +354,6 @@ ggsurvplot(fit_age,
            title = "Survival by Age Group")
 
 ```
-
-
-
-
-
-
-
 
 
 Mutation data:
