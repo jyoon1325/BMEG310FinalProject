@@ -76,15 +76,15 @@ library(factoextra)
 library(org.Hs.eg.db)
 library(enrichplot)
 library(DESeq2)
+library (dplyr)
 ```
-
 
 
 Import data:
 ```{r}
 RNAseq_LIHC <- read.csv("RNAseq_LIHC.csv", header = TRUE, sep = "\t")
-data_clinical_patient <- read.delim("data_clinical_patient.txt", header = TRUE, sep = "\t")
-data_mutations <- read.delim("data_mutations.txt", header = TRUE, sep = "\t")
+data_clinical_patient <- read.table("data_clinical_patient.txt", header = TRUE, sep = "\t")
+data_mutations <- read.table("data_mutations.txt", header = TRUE, sep = "\t")
 ```
 
 summaries of data
@@ -95,10 +95,58 @@ summaries of data
 ```
 
 
+filter data
+```{r}
+# Ensure patient, mutations, and RNAseq data have consistent identifiers
+data_clinical_patient$PATIENT_ID <- substr(data_clinical_patient$PATIENT_ID, 9, 12)
+data_mutations$Tumor_Sample_Barcode <- substr(data_mutations$Tumor_Sample_Barcode, 9, 12)
+colnames(RNAseq_LIHC) <- substr(colnames(RNAseq_LIHC), 9, 12)
+
+# Identify unique patients across datasets
+unique_patients <- unique(data_clinical_patient$PATIENT_ID)
+unique_mutations <- unique(data_mutations$Tumor_Sample_Barcode)
+unique_RNA <- unique(colnames(RNAseq_LIHC))
+
+# Find common patients across all three datasets
+common_patients <- Reduce(intersect, list(unique_patients, unique_mutations, unique_RNA))
+
+# Filter clinical data for common patients
+filtered_clinical_patient <- data_clinical_patient[data_clinical_patient$PATIENT_ID %in% common_patients, ]
+
+# Filter mutation data for common patients
+filtered_mutations <- data_mutations[data_mutations$Tumor_Sample_Barcode %in% common_patients, ]
+
+# Filter RNAseq data for common patients
+filtered_RNAseq <- RNAseq_LIHC[, colnames(RNAseq_LIHC) %in% common_patients]
+
+# Remove censored patients from clinical, mutation, and RNAseq data
+censored_patients <- filtered_clinical_patient %>%
+  filter(PFS_STATUS == "0:CENSORED") %>%
+  pull(PATIENT_ID)
+
+filtered_clinical_patient <- filtered_clinical_patient[!filtered_clinical_patient$PATIENT_ID %in% censored_patients, ]
+filtered_mutations <- filtered_mutations[!filtered_mutations$Tumor_Sample_Barcode %in% censored_patients, ]
+filtered_RNAseq <- filtered_RNAseq[, !colnames(filtered_RNAseq) %in% censored_patients]
+
+# Ensure mutation data excludes low-impact mutations
+filtered_mutations$IMPACT <- as.character(filtered_mutations$IMPACT)
+filtered_mutations <- subset(filtered_mutations, IMPACT != "LOW")
+
+```
+
+
+
+
+
+
+_______________________________________________________________________________________________________________________________________
+
 Analysis:
 1. Clinical Data
 2. Mutation Data
 3. Expression Data
+
+_______________________________________________________________________________________________________________________________________
 
 
 Clinical Data:
@@ -151,6 +199,31 @@ ggplot(data_clinical_patient, aes(x = as.numeric(Diagnosis.Age), fill = Neoplasm
   theme_minimal()
 ```
 Survival Analysis
+Kaplan-Meier Survival Curve
+
+```{r}
+# Create a survival object
+data_clinical_patient$Overall.Survival..Months. <- as.numeric(as.character(data_clinical_patient$Overall.Survival..Months.))
+data_clinical_patient <- data_clinical_patient %>%
+  mutate(Overall.Survival..Months. = ifelse(is.na(Overall.Survival..Months.), median(Overall.Survival..Months., na.rm = TRUE), Overall.Survival..Months.))
+
+surv_obj <- Surv(data_clinical_patient$Overall.Survival..Months., data_clinical_patient$Overall.Survival.Status == "Deceased")
+
+# Fit and plot Kaplan-Meier curve
+fit <- survfit(surv_obj ~ 1, data = data_clinical_patient)
+ggsurvplot(
+  fit,
+  data = data_clinical_patient,
+  title = "Kaplan-Meier Survival Curve",
+  xlab = "Time (Months)",
+  ylab = "Survival Probability",
+  conf.int = TRUE,
+  risk.table = TRUE,
+  ggtheme = theme_minimal()
+)
+
+```
+
 ```{r}
 # Check the structure and unique values in the survival time column
 str(data_clinical_patient$Overall.Survival..Months.)
