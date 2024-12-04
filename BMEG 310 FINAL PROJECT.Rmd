@@ -450,25 +450,111 @@ print(clusters_wardD2)
 
 ```
 
+
+
+
+```{r}
+# Ensure consistent formatting of barcodes
+filtered_mutations$Tumor_Sample_Barcode <- trimws(filtered_mutations$Tumor_Sample_Barcode)
+names(clusters_ward) <- trimws(names(clusters_ward))
+
+# Check for common barcodes
+common_barcodes <- intersect(filtered_mutations$Tumor_Sample_Barcode, names(clusters_ward))
+
+
+# Filter `filtered_mutations` to include only matching barcodes
+filtered_mutations <- filtered_mutations[filtered_mutations$Tumor_Sample_Barcode %in% common_barcodes, ]
+```
+```{r}
+# Assign clusters to patients in `filtered_mutations`
+filtered_mutations$Cluster <- clusters_ward[match(filtered_mutations$Tumor_Sample_Barcode, names(clusters_ward))]
+
+# Drop rows where Cluster is NA
+filtered_mutations <- filtered_mutations[!is.na(filtered_mutations$Cluster), ]
+dim(filtered_mutations)  # Confirm non-zero rows
+
+```
+
+```{r}
+# Subset `gene_patient_matrix` to only include common patients
+common_barcodes <- intersect(colnames(gene_patient_matrix)[-1], names(clusters_ward))
+gene_patient_matrix <- gene_patient_matrix[, c("Hugo_Symbol", common_barcodes)]
+
+# Ensure no NA values in the matrix
+gene_patient_matrix[is.na(gene_patient_matrix)] <- 0
+
+```
+
+
+
+
+
 4a. Take the clusters of patients and do (a) DE analysis on all genes (not just top 500)
-count matrix:
-```{r}
-#gene-patient binary matrix
-gene_patient_matrix <- table(filtered_mutations$Hugo_Symbol, filtered_mutations$Tumor_Sample_Barcode)
 
-#Convert to numeric matrix
-countData <- as.matrix(gene_patient_matrix)
-mode(countData) <- "numeric"
+```{r}
+# Check dimensions of the filtered_mutations dataset
+dim(filtered_mutations)
+
+# Check dimensions of the gene_patient_matrix
+dim(gene_patient_matrix)
+
+# Check length of Cluster assignments
+length(clusters_ward)
+
+# Ensure alignment of `Tumor_Sample_Barcode` with Cluster assignments
+filtered_mutations$Cluster <- clusters_ward[match(filtered_mutations$Tumor_Sample_Barcode, names(clusters_ward))]
+
+# Drop rows where Cluster is NA
+filtered_mutations <- filtered_mutations[!is.na(filtered_mutations$Cluster), ]
+dim(filtered_mutations)  # Confirm dimensions after filtering
 
 ```
-metadata
+
+
+
+
 ```{r}
-metadata <- data.frame(
-  cluster = as.factor(clusters_ward[colnames(countData)])  # Assign cluster labels
-)
-rownames(metadata) <- colnames(countData)
+# Ensure filtered_mutations contains valid mutation data
+filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% c("missense_variant", "nonsense_variant", "frameshift_variant"), ]
+
+# Ensure clusters align with patients
+filtered_mutations$Cluster <- clusters_ward[match(filtered_mutations$Tumor_Sample_Barcode, names(clusters_ward))]
+
+na.omit(filtered_mutations$Cluster)
+
+
+# Ensure consistent barcodes and filter matrix
+mutation_matrix <- table(filtered_mutations$Hugo_Symbol, filtered_mutations$Tumor_Sample_Barcode)
+mutation_matrix <- as.data.frame.matrix(mutation_matrix)
+mutation_matrix[mutation_matrix > 0] <- 1
+
+# Add cluster information
+mutation_matrix <- mutation_matrix[, common_barcodes]
+mutation_matrix <- cbind(Cluster = clusters_ward[common_barcodes], mutation_matrix)
+
+# Check dimensions and structure
+dim(mutation_matrix)
+head(mutation_matrix)
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
