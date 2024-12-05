@@ -367,22 +367,18 @@ ________________________________________________________________________________
 
 1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc)
 ```{r}
-# Filter for specific mutation types
+#filter for specific mutation types
 valid_mutation_types <- c("missense_variant", "nonsense_variant", "frameshift_variant")
 filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% valid_mutation_types, ]
 
-# Ensure filtered_mutations is not empty
-if (nrow(filtered_mutations) == 0) {
-  stop("No mutations found matching the specified types.")
-}
 
-# Extract unique Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode) pairs
+#get unique Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode) pairs
 gene_patient_data <- unique(filtered_mutations[, c("Hugo_Symbol", "Tumor_Sample_Barcode")])
 
-# Add a binary column indicating mutation presence
+#binary column (1 = mutation presence)
 gene_patient_data$mutated <- 1
 
-# Create the gene-patient matrix
+#gene-patient matrix
 gene_patient_matrix <- reshape2::dcast(
   gene_patient_data,
   Hugo_Symbol ~ Tumor_Sample_Barcode,
@@ -390,29 +386,28 @@ gene_patient_matrix <- reshape2::dcast(
   fill = 0
 )
 
-# Check the resulting matrix
 head(gene_patient_matrix)
 
 ```
 
 2. Pick the top 20 or most frequently mutated genes from this matrix.  
 ```{r}
-# Calculate the total number of mutations for each gene
-gene_patient_numeric <- as.matrix(gene_patient_matrix[, -1])  # Exclude the Hugo_Symbol column
-rownames(gene_patient_numeric) <- gene_patient_matrix$Hugo_Symbol  # Retain gene names
+#total number of mutations for each gene
+gene_patient_numeric <- as.matrix(gene_patient_matrix[, -1])  
+rownames(gene_patient_numeric) <- gene_patient_matrix$Hugo_Symbol
 
-gene_mutation_counts <- rowSums(gene_patient_numeric)  # Sum mutations across patients
+#number of mutations across patients
+gene_mutation_counts <- rowSums(gene_patient_numeric)
 
-# Add mutation counts to the matrix
+#mutation counts to the matrix
 gene_patient_matrix$Mutation_Counts <- gene_mutation_counts
 
-# Sort genes by mutation counts in descending order
+#sort by mutation counts in descending order
 sorted_genes <- gene_patient_matrix[order(-gene_patient_matrix$Mutation_Counts), ]
 
-# Select the top 20 most frequently mutated genes
+#top 20 most frequently mutated genes
 top_20_genes <- sorted_genes[1:20, ]
 
-# View the top 20 genes
 top_20_genes
 
 
@@ -421,20 +416,20 @@ top_20_genes
 3. Perform clustering on the resulting mutation matrix Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
 ```{r}
 
-# Subset the mutation matrix for clustering (top 20 genes only)
-top_20_matrix <- as.matrix(top_20_genes[, -c(1, ncol(top_20_genes))])  # Remove Hugo_Symbol and Mutation_Counts
+#mutation matrix for clustering (top 20 genes only)
+top_20_matrix <- as.matrix(top_20_genes[, -c(1, ncol(top_20_genes))])
 rownames(top_20_matrix) <- top_20_genes$Hugo_Symbol
 
-# Perform hierarchical clustering using "ward" and "ward.D2" linkage methods
-dist_matrix <- dist(top_20_matrix, method = "binary")  # Binary distance for mutation data
+#hierarchical clustering
+dist_matrix <- dist(top_20_matrix, method = "binary")
 
-# Clustering with Ward method
+#clustering with Ward
 hc_ward <- hclust(dist_matrix, method = "ward.D")
 
-# Clustering with Ward.D2 method
+#clustering with Ward.D2
 hc_ward_d2 <- hclust(dist_matrix, method = "ward.D2")
 
-# Plot the dendrograms
+#Plot dendrograms
 par(mfrow = c(1, 2))  # Set up a side-by-side layout
 plot(hc_ward, main = "Hierarchical Clustering (Ward)", xlab = "", sub = "", cex = 0.8)
 plot(hc_ward_d2, main = "Hierarchical Clustering (Ward.D2)", xlab = "", sub = "", cex = 0.8)
