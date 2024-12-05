@@ -159,7 +159,7 @@ unique(filtered_mutations$IMPACT)
 Summaries
 ```{r}
 #summary(unq_patient_df)
-summary(filtered_mutations)
+#summary(filtered_mutations)
 #summary(unq_RNA_ID)
 
 ```
@@ -367,15 +367,17 @@ ________________________________________________________________________________
 
 1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc)
 ```{r}
-#filter for specific mutation types
-valid_mutation_types <- c("missense_variant", "nonsense_variant", "frameshift_variant")
-filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% valid_mutation_types, ]
+#filtered_mutations for processing without modifying the original fitlered data
+filtered_mutations_copy <- filtered_mutations
 
+#specific mutation types
+valid_mutation_types <- c("missense_variant", "nonsense_variant", "frameshift_variant")
+filtered_mutations_processed <- filtered_mutations_copy[filtered_mutations_copy$Consequence %in% valid_mutation_types, ]
 
 #get unique Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode) pairs
-gene_patient_data <- unique(filtered_mutations[, c("Hugo_Symbol", "Tumor_Sample_Barcode")])
+gene_patient_data <- unique(filtered_mutations_processed[, c("Hugo_Symbol", "Tumor_Sample_Barcode")])
 
-#binary column (1 = mutation presence)
+#binary column ( 1= mutation )
 gene_patient_data$mutated <- 1
 
 #gene-patient matrix
@@ -385,8 +387,8 @@ gene_patient_matrix <- reshape2::dcast(
   value.var = "mutated",
   fill = 0
 )
-
 head(gene_patient_matrix)
+
 
 ```
 
@@ -434,63 +436,7 @@ par(mfrow = c(1, 2))  # Set up a side-by-side layout
 plot(hc_ward, main = "Hierarchical Clustering (Ward)", xlab = "", sub = "", cex = 0.8)
 plot(hc_ward_d2, main = "Hierarchical Clustering (Ward.D2)", xlab = "", sub = "", cex = 0.8)
 
-
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```{r}
-# Ensure consistent formatting of barcodes
-filtered_mutations$Tumor_Sample_Barcode <- trimws(filtered_mutations$Tumor_Sample_Barcode)
-names(clusters_ward) <- trimws(names(clusters_ward))
-
-# Check for common barcodes
-common_barcodes <- intersect(filtered_mutations$Tumor_Sample_Barcode, names(clusters_ward))
-
-
-# Filter `filtered_mutations` to include only matching barcodes
-filtered_mutations <- filtered_mutations[filtered_mutations$Tumor_Sample_Barcode %in% common_barcodes, ]
-```
-```{r}
-# Assign clusters to patients in `filtered_mutations`
-filtered_mutations$Cluster <- clusters_ward[match(filtered_mutations$Tumor_Sample_Barcode, names(clusters_ward))]
-
-# Drop rows where Cluster is NA
-filtered_mutations <- filtered_mutations[!is.na(filtered_mutations$Cluster), ]
-dim(filtered_mutations)  # Confirm non-zero rows
-
-```
-
-```{r}
-# Subset `gene_patient_matrix` to only include common patients
-common_barcodes <- intersect(colnames(gene_patient_matrix)[-1], names(clusters_ward))
-gene_patient_matrix <- gene_patient_matrix[, c("Hugo_Symbol", common_barcodes)]
-
-# Ensure no NA values in the matrix
-gene_patient_matrix[is.na(gene_patient_matrix)] <- 0
-
-```
-
 
 
 
@@ -498,21 +444,41 @@ gene_patient_matrix[is.na(gene_patient_matrix)] <- 0
 4a. Take the clusters of patients and do (a) DE analysis on all genes (not just top 500)
 
 ```{r}
-# Check dimensions of the filtered_mutations dataset
-dim(filtered_mutations)
 
-# Check dimensions of the gene_patient_matrix
-dim(gene_patient_matrix)
+# Load required library
+library(DESeq2)
 
-# Check length of Cluster assignments
-length(clusters_ward)
+# Use the filtered mutation matrix
+# Assume `gene_patient_matrix` is the mutation data with patients as columns and genes as rows
+# Ensure columns are patients, rows are genes, and all data is numeric (0/1)
 
-# Ensure alignment of `Tumor_Sample_Barcode` with Cluster assignments
-filtered_mutations$Cluster <- clusters_ward[match(filtered_mutations$Tumor_Sample_Barcode, names(clusters_ward))]
+# Prepare mutation count data (top 20 genes or full dataset)
+mutation_counts <- as.matrix(gene_patient_matrix[, -c(1, ncol(gene_patient_matrix))])  # Exclude Hugo_Symbol and Mutation_Counts
+rownames(mutation_counts) <- gene_patient_matrix$Hugo_Symbol  # Set rownames as gene symbols
 
-# Drop rows where Cluster is NA
-filtered_mutations <- filtered_mutations[!is.na(filtered_mutations$Cluster), ]
-dim(filtered_mutations)  # Confirm dimensions after filtering
+# Ensure patient IDs are consistent between clustering and mutation matrix
+valid_patients <- intersect(colnames(mutation_counts), names(cluster_assignments))
+
+# Subset mutation counts matrix and cluster assignments
+mutation_counts <- mutation_counts[, valid_patients, drop = FALSE]
+cluster_labels <- cluster_assignments[valid_patients]
+
+# Create DESeq2 dataset
+dds <- DESeqDataSetFromMatrix(
+  countData = mutation_counts,
+  colData = data.frame(cluster = as.factor(cluster_labels)),
+  design = ~ cluster
+)
+
+# Run DESeq2 analysis
+dds <- DESeq(dds)
+res <- results(dds, alpha = 0.05)  # Adjusted p-value threshold of 0.05
+
+# Extract significantly differentially mutated genes
+significant_genes <- res[which(res$padj < 0.05), ]
+
+# View significant genes
+head(significant_genes)
 
 ```
 
