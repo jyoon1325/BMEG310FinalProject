@@ -367,20 +367,22 @@ ________________________________________________________________________________
 
 1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc)
 ```{r}
-#filter the dataset for specific mutation types
-filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% c("missense_variant", "nonsense_variant", "frameshift_variant"), ]
+# Filter for specific mutation types
+valid_mutation_types <- c("missense_variant", "nonsense_variant", "frameshift_variant")
+filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% valid_mutation_types, ]
 
-#isolate columns: Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode)
-gene_patient_data <- filtered_mutations[, c("Hugo_Symbol", "Tumor_Sample_Barcode")]
+# Ensure filtered_mutations is not empty
+if (nrow(filtered_mutations) == 0) {
+  stop("No mutations found matching the specified types.")
+}
 
-#remove duplicates of Gene and Patient
-gene_patient_data <- unique(gene_patient_data)
+# Extract unique Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode) pairs
+gene_patient_data <- unique(filtered_mutations[, c("Hugo_Symbol", "Tumor_Sample_Barcode")])
 
-#binary column (1 = mutation exists)
+# Add a binary column indicating mutation presence
 gene_patient_data$mutated <- 1
 
-#gene-patient matrix 
-#genes as rows and patients as columns
+# Create the gene-patient matrix
 gene_patient_matrix <- reshape2::dcast(
   gene_patient_data,
   Hugo_Symbol ~ Tumor_Sample_Barcode,
@@ -388,58 +390,54 @@ gene_patient_matrix <- reshape2::dcast(
   fill = 0
 )
 
+# Check the resulting matrix
 head(gene_patient_matrix)
+
 ```
 
 2. Pick the top 20 or most frequently mutated genes from this matrix.  
 ```{r}
-#total number of mutations for each gene (row sums)
-gene_mutation_counts <- rowSums(gene_patient_matrix[, -1])  # Exclude the gene column (first column)
+# Calculate the total number of mutations for each gene
+gene_patient_numeric <- as.matrix(gene_patient_matrix[, -1])  # Exclude the Hugo_Symbol column
+rownames(gene_patient_numeric) <- gene_patient_matrix$Hugo_Symbol  # Retain gene names
 
-#add mutation counts to the gene-patient matrix
-gene_patient_matrix <- cbind(Hugo_Symbol = rownames(gene_patient_matrix), gene_patient_matrix)
+gene_mutation_counts <- rowSums(gene_patient_numeric)  # Sum mutations across patients
 
-#sort genes by mutation counts (descending order)
-sorted_genes <- gene_patient_matrix[order(-gene_mutation_counts), ]
+# Add mutation counts to the matrix
+gene_patient_matrix$Mutation_Counts <- gene_mutation_counts
 
-#top 20 most frequently mutated genes
+# Sort genes by mutation counts in descending order
+sorted_genes <- gene_patient_matrix[order(-gene_patient_matrix$Mutation_Counts), ]
+
+# Select the top 20 most frequently mutated genes
 top_20_genes <- sorted_genes[1:20, ]
 
-#print(top_20_genes)
+# View the top 20 genes
+top_20_genes
+
+
 ```
 
 3. Perform clustering on the resulting mutation matrix Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
 ```{r}
 
-#mutation matrix for the top 20 genes (removing the first column which contains gene names)
-mutation_matrix_top20 <- as.matrix(top_20_genes[, -1])
+# Subset the mutation matrix for clustering (top 20 genes only)
+top_20_matrix <- as.matrix(top_20_genes[, -c(1, ncol(top_20_genes))])  # Remove Hugo_Symbol and Mutation_Counts
+rownames(top_20_matrix) <- top_20_genes$Hugo_Symbol
 
-#distance matrix using Euclidean distance
-distance_matrix <- dist(mutation_matrix_top20, method = "euclidean")
+# Perform hierarchical clustering using "ward" and "ward.D2" linkage methods
+dist_matrix <- dist(top_20_matrix, method = "binary")  # Binary distance for mutation data
 
-#hierarchical clustering ward.D method
-hc_ward <- hclust(distance_matrix, method = "ward.D")
+# Clustering with Ward method
+hc_ward <- hclust(dist_matrix, method = "ward.D")
 
-#hierarchical clustering ward.D2 method
-hc_wardD2 <- hclust(distance_matrix, method = "ward.D2")
+# Clustering with Ward.D2 method
+hc_ward_d2 <- hclust(dist_matrix, method = "ward.D2")
 
-# dendrograms
-par(mfrow = c(1, 2))  # Arrange plots side by side
-
-#ward.D
-plot(hc_ward, main = "Dendrogram (Ward.D Method)", sub = "", xlab = "Genes", ylab = "Height")
-
-# ward.D2
-plot(hc_wardD2, main = "Dendrogram (Ward.D2 Method)", sub = "", xlab = "Genes", ylab = "Height")
-
-clusters_ward <- cutree(hc_ward, k = 3)
-clusters_wardD2 <- cutree(hc_wardD2, k = 3)
-
-print("Clusters from Ward.D:")
-print(clusters_ward)
-
-print("Clusters from Ward.D2:")
-print(clusters_wardD2)
+# Plot the dendrograms
+par(mfrow = c(1, 2))  # Set up a side-by-side layout
+plot(hc_ward, main = "Hierarchical Clustering (Ward)", xlab = "", sub = "", cex = 0.8)
+plot(hc_ward_d2, main = "Hierarchical Clustering (Ward.D2)", xlab = "", sub = "", cex = 0.8)
 
 
 ```
