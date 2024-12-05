@@ -159,7 +159,7 @@ unique(filtered_mutations$IMPACT)
 Summaries
 ```{r}
 #summary(unq_patient_df)
-#summary(filtered_mutations)
+summary(filtered_mutations)
 #summary(unq_RNA_ID)
 
 ```
@@ -367,31 +367,28 @@ ________________________________________________________________________________
 
 1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc)
 ```{r}
-#filter the dataset for specific mutation types
+# Filter the dataset for specific mutation types
 filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% c("missense_variant", "nonsense_variant", "frameshift_variant"), ]
 
-#extract columns: Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode)
+# Select only the necessary columns: Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode)
 gene_patient_data <- filtered_mutations[, c("Hugo_Symbol", "Tumor_Sample_Barcode")]
 
-#binary column for the presence of a mutation
+# Remove duplicate combinations of Gene and Patient
+gene_patient_data <- unique(gene_patient_data)
+
+# Add a binary column indicating the presence of a mutation
 gene_patient_data$mutated <- 1
 
-#matrix with genes as rows and patients as columns
-gene_patient_matrix <- reshape(
-  data = gene_patient_data,
-  timevar = "Tumor_Sample_Barcode",
-  idvar = "Hugo_Symbol",
-  direction = "wide"
+# Create a gene-patient matrix with genes as rows and patients as columns
+gene_patient_matrix <- reshape2::dcast(
+  gene_patient_data,
+  Hugo_Symbol ~ Tumor_Sample_Barcode,
+  value.var = "mutated",
+  fill = 0
 )
 
-#Replace NA values with 0 (no mutation)
-gene_patient_matrix[is.na(gene_patient_matrix)] <- 0
-
-#clean column names to remove redundant "mutated."
-colnames(gene_patient_matrix) <- sub("mutated\\.", "", colnames(gene_patient_matrix))
-
-#matrix:
-#head(gene_patient_matrix)
+# View the head of the resulting matrix to confirm the structure
+head(gene_patient_matrix)
 ```
 
 2. Pick the top 20 or most frequently mutated genes from this matrix.  
