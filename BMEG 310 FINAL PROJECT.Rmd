@@ -35,17 +35,17 @@ require(ISLR)
 library(corrplot)
 #install.packages("caret")
 library(caret)
-install.packages("randomForest")
+#install.packages("randomForest")
 library(randomForest)
 
 #Introduction to Survival Analysis
 #BiocManager::install("TCGAbiolinks")
-library("TCGAbiolinks")
+library(TCGAbiolinks)
 #BiocManager::install("survival")
-library("survival")
+library(survival)
 #BiocManager::install("survminer")
-library("survminer")
-library("SummarizedExperiment")
+library(survminer)
+library(SummarizedExperiment)
 
 #Introduction to Mutation Analysis
 # install.packages("pheatmap")
@@ -57,10 +57,10 @@ library(pheatmap)
 # BiocManager::install("pathview")
 # BiocManager::install("gage")
 # BiocManager::install("gageData")
-library("gridExtra")
+library(gridExtra)
 library(ggrepel)
-library("AnnotationDbi")
-library("org.Hs.eg.db")
+library(AnnotationDbi)
+library(org.Hs.eg.db)
 library(pathview)
 library(gage)
 library(gageData)
@@ -76,10 +76,9 @@ library(factoextra)
 library(org.Hs.eg.db)
 library(enrichplot)
 library(DESeq2)  
-#install.packages("magrittr")
+#install.packages(magrittr)
 library (dplyr)
 library(TCGAbiolinks)
-#install.packages("magrittr")
 
 ```
 
@@ -160,7 +159,7 @@ unique(filtered_mutations$IMPACT)
 Summaries
 ```{r}
 #summary(unq_patient_df)
-summary(filtered_mutations)
+#summary(filtered_mutations)
 #summary(unq_RNA_ID)
 
 ```
@@ -414,8 +413,6 @@ top_20_genes <- sorted_genes[1:20, ]
 
 3. Perform clustering on the resulting mutation matrix Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
 ```{r}
-library(cluster)
-library(factoextra)
 
 #mutation matrix for the top 20 genes (removing the first column which contains gene names)
 mutation_matrix_top20 <- as.matrix(top_20_genes[, -1])
@@ -449,6 +446,25 @@ print(clusters_wardD2)
 
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -537,6 +553,23 @@ dim(mutation_matrix)
 head(mutation_matrix)
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
