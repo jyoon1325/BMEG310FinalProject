@@ -367,19 +367,20 @@ ________________________________________________________________________________
 
 1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc)
 ```{r}
-# Filter the dataset for specific mutation types
+#filter the dataset for specific mutation types
 filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% c("missense_variant", "nonsense_variant", "frameshift_variant"), ]
 
-# Select only the necessary columns: Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode)
+#isolate columns: Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode)
 gene_patient_data <- filtered_mutations[, c("Hugo_Symbol", "Tumor_Sample_Barcode")]
 
-# Remove duplicate combinations of Gene and Patient
+#remove duplicates of Gene and Patient
 gene_patient_data <- unique(gene_patient_data)
 
-# Add a binary column indicating the presence of a mutation
+#binary column (1 = mutation exists)
 gene_patient_data$mutated <- 1
 
-# Create a gene-patient matrix with genes as rows and patients as columns
+#gene-patient matrix 
+#genes as rows and patients as columns
 gene_patient_matrix <- reshape2::dcast(
   gene_patient_data,
   Hugo_Symbol ~ Tumor_Sample_Barcode,
@@ -387,7 +388,6 @@ gene_patient_matrix <- reshape2::dcast(
   fill = 0
 )
 
-# View the head of the resulting matrix to confirm the structure
 head(gene_patient_matrix)
 ```
 
