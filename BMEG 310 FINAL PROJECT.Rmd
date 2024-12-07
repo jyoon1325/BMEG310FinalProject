@@ -7,7 +7,7 @@ output: html_document
 
 https://github.com/jyoon1325/BMEG310FinalProject.git
 
-Import libraries:
+#Import libraries:
 ```{r}
 #all libraries from tutorials:
 
@@ -79,20 +79,20 @@ library(DESeq2)
 #install.packages(magrittr)
 library (dplyr)
 library(TCGAbiolinks)
-BiocManager::install("edgeR")
+#BiocManager::install("edgeR")
 library(edgeR)
 
 ```
 
 
-Import data:
+#Import data:
 ```{r}
 RNA.data <- read.csv("RNAseq_LIHC.csv")
 patient.data <- read.table("data_clinical_patient.txt", header = TRUE, sep = "\t")
 mutations.data <- read.table("data_mutations.txt", header = TRUE, sep = "\t")
 ```
 
-summaries of data
+##summaries of data
 ```{r}
 #summary(RNA.data)
 #summary(patient.data)
@@ -103,7 +103,7 @@ summaries of data
 ```
 
 
-filter data
+#filter data
 ```{r}
 patient_df<-patient.data
 patient_df$PATIENT_ID<-substr(patient_df$PATIENT_ID,9,12)
@@ -143,7 +143,7 @@ filtered_mutations <- subset(unq_mutations_df,
                               & (unq_mutations_df$Consequence != "synonymous_variant")))
 
 ```
-Summaries
+##Summaries of filtered data
 ```{r}
 #summary(unq_patient_df)
 #summary(filtered_mutations)
@@ -152,7 +152,7 @@ Summaries
 ```
 
 
-
+#Analysis
 _______________________________________________________________________________________________________________________________________
 
 Analysis:
@@ -165,20 +165,20 @@ ________________________________________________________________________________
 
 
 
-
+##Clinical Data:
 _______________________________________________________________________________________________________________________________________
 Clinical Data:
 1. Explore clinical data wrt the distribution based on various variable/attributes such as age, stage, survival, etc 
 _______________________________________________________________________________________________________________________________________
 
-Age Distribution
+####Age Distribution
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE)) +
   geom_histogram(binwidth = 5, fill = "blue", color = "black", alpha = 0.7) +
   labs(title = "Age Distribution", x = "Age", y = "Count") +
   theme_minimal()
 ```
-cancer stage Distribution
+####cancer stage Distribution
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = OS_STATUS)) +
   geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
@@ -187,21 +187,21 @@ ggplot(unq_patient_df, aes(x = AGE, fill = OS_STATUS)) +
 
 ```
 
-Age vs Overall Survival
+####Age vs Overall Survival
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = OS_STATUS)) +
   geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
   labs(title = "Age Distribution by Overall Survival", x = "Age", y = "Count", fill = "Overall Survival") +
   theme_minimal()
 ```
-Age vs Progression-Free Survival (PFS) Status
+####Age vs Progression-Free Survival (PFS) Status
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = PFS_STATUS)) +
   geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
   labs(title = "Age Distribution by Progression-Free Survival Status", x = "Age", y = "Count", fill = "Progression-Free Survival Status") +
   theme_minimal()
 ```
-Age Distribution with Boxplot Grouped by Tumor Stage
+####Age Distribution with Boxplot Grouped by Tumor Stage
 ```{r}
 ggplot(unq_patient_df, aes(x = AJCC_PATHOLOGIC_TUMOR_STAGE, y = AGE, fill = AJCC_PATHOLOGIC_TUMOR_STAGE)) +
   geom_boxplot(alpha = 0.7) +
@@ -209,7 +209,7 @@ ggplot(unq_patient_df, aes(x = AJCC_PATHOLOGIC_TUMOR_STAGE, y = AGE, fill = AJCC
   theme_minimal() +
   theme(legend.position = "none")
 ```
-Survival Distribution by Age
+####Survival Distribution by Age
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = DSS_STATUS)) +
   geom_histogram(binwidth = 5, position = "stack", alpha = 0.7) +
@@ -217,8 +217,8 @@ ggplot(unq_patient_df, aes(x = AGE, fill = DSS_STATUS)) +
   theme_minimal()
 ```
 
-Survival analysis
-Prepare Data
+##Survival analysis
+###Prepare Data
 ```{r}
 #survival data
 unq_patient_df <- unq_patient_df %>%
@@ -230,7 +230,7 @@ unq_patient_df <- unq_patient_df %>%
   )
 ```
 
-Kaplan-Meier Analysis by Gender
+###Kaplan-Meier Analysis by Gender
 ```{r}
 #fit survival model for gender
 fit_gender <- survfit(Surv(overall_survival, deceased) ~ SEX, data = unq_patient_df)
@@ -239,7 +239,7 @@ fit_gender <- survfit(Surv(overall_survival, deceased) ~ SEX, data = unq_patient
 ggsurvplot(fit_gender, data = unq_patient_df, pval = TRUE, risk.table = TRUE, risk.table.col = "strata", risk.table.height = 0.3)
 ```
 
-Kaplan-Meier Analysis by Weight
+###Kaplan-Meier Analysis by Weight
 ```{r}
 # categorize patients by weight
 unq_patient_df <- unq_patient_df %>%
@@ -272,7 +272,7 @@ ggsurvplot(fit_weight,
 ```
 
 
-Kaplan-Meier Analysis by Tumor Stage
+###Kaplan-Meier Analysis by Tumor Stage
 ```{r}
 # remove sub-stages of AJCC_PATHOLOGIC_TUMOR_STAGE
 unq_patient_df <- unq_patient_df %>%
@@ -291,7 +291,7 @@ ggsurvplot(fit_stage,
            title = "Survival by Tumor Stage")
 
 ```
-Kaplan-Meier Analysis by race
+###Kaplan-Meier Analysis by race
 ```{r}
 #Group races 
   #"white", "asian", "black", and "others"...?
@@ -311,7 +311,7 @@ ggsurvplot(fit_race,
            title = "Survival by Race Group")
 
 ```
-Kaplan-Meier Survival Analysis by Age Group
+###Kaplan-Meier Survival by Age Group
 ```{r}
 # age groups
 unq_patient_df <- unq_patient_df %>%
@@ -453,6 +453,9 @@ list_of_patients <- list(
 
 
 ### Survival Analysis on Clinical Data to compare Patients in the Clusters
+
+
+
 
 ### Mutation ANalysis on Patients in Clusters to Find Mutational Patterns 
 
