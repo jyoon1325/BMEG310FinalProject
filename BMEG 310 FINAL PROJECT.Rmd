@@ -26,7 +26,7 @@ library(devtools)
 #install.packages("remotes")
 #remotes::install_github("vqv/ggbiplot")
 library(ggbiplot)
-suppressPackageStartupMessages(library(dplyr))
+library(dplyr)
 #install.packages("readxl")
 library(readxl)#read_excel
 #install.packages("ISLR")
@@ -79,6 +79,8 @@ library(DESeq2)
 #install.packages(magrittr)
 library (dplyr)
 library(TCGAbiolinks)
+BiocManager::install("edgeR")
+library(edgeR)
 
 ```
 
@@ -114,9 +116,6 @@ RNA_df <- RNA.data[,-1]
 
 #rename columns to match patient id naming convention of other data sets
 colnames(RNA_df)<-substr(colnames(RNA_df),9,12)
-```
-
-```{r}
 
 #find unique patients
 unique_patients<-unique(patient_df$PATIENT_ID)
@@ -137,11 +136,7 @@ unq_RNA_ID<-RNA_df[, colnames(RNA_df)%in% common_patients]
 #add back the first column (X) from the RNA data frame
 RNA_df$X<-RNA.data$X[match(rownames(RNA_df), rownames(RNA.data))] 
  
-```
 
-### Pre-Processing
-
-```{r}
 #Take out Low impact mutations, intron and synonymous variants
 filtered_mutations <- subset(unq_mutations_df,
                              ((unq_mutations_df$IMPACT != "LOW") & (unq_mutations_df$Consequence != "intron_variant") 
@@ -347,6 +342,123 @@ ggsurvplot(fit_age,
 
 
 
+
+## Create Clusters Using Expression Data
+
+### Pre-Processing 
+
+```{r}
+#Move Column "X" to the first position
+
+RNA_df <- RNA_df[, c("X", setdiff(names(RNA_df), "X"))]
+
+#remove column "X", as it is not a sample
+preprocessed_RNA = RNA_df[,-1]
+
+#convert to matrix
+preprocessed_RNA = as.matrix(preprocessed_RNA) 
+
+gene_names <- RNA_df$X  # Extract gene names
+rownames(preprocessed_RNA) <- gene_names  # Set as row names
+
+#filter data that has 0 or 1 read count across all samples
+
+preprocessed_RNA <- preprocessed_RNA[rowSums(preprocessed_RNA)>1,]
+```
+
+```{r}
+# CPM normalize data
+cpm_RNA <- cpm(preprocessed_RNA)
+
+#log normalize the counts
+log_RNA <- log2(cpm_RNA + 1)
+
+```
+
+```{r}
+#Find the 50 most variably expressed genes
+
+#Find Variance for each gene
+expression_variance <- apply(log_RNA, 1, var)
+
+#Sort based on variance
+sorted_expression <- sort(expression_variance, decreasing = TRUE)
+
+#Get top 50 genes
+top_genes <- names(sorted_expression)[1:50]
+
+```
+
+```{r}
+#subset the expression data to only include the top 50 genes
+top_RNA <- log_RNA[top_genes, ]
+
+#Visualize using a heatmap
+pheatmap(top_RNA, scale = "row", clustering_distance_rows = "euclidean", 
+         clustering_distance_cols = "euclidean", main = "Top 50 Variable Genes")
+```
+
+### Clustering 
+
+```{r}
+# Create a distance matrix
+# Transpose data to cluster
+dist_matrix <- dist(t(top_RNA), method = "euclidean")
+
+#Hierarchical clustering
+hc <- hclust(dist_matrix, method = "ward.D2") #ward's method 
+
+#plot
+plot(hc, main = "Hierarchical Clustering of Samples", xlab = "", sub = "")
+```
+```{r}
+#Cut the Dendrogram into Clusters
+k <- 2
+clusters <- cutree(hc, k = k)
+
+table(clusters)
+```
+
+```{r}
+#PCA 
+transposed_RNA <- t(top_RNA)  #transpose
+pca <- prcomp(transposed_RNA, scale = TRUE)
+
+pca_df <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Cluster = factor(clusters))
+
+#put in labels
+pca_df$PATIENT_ID <- colnames(top_RNA)
+
+#visualize with ggplot
+ggplot(pca_df, aes(x = PC1, y = PC2, color = Cluster)) +
+  geom_point(size =4) +
+  labs(title = paste("PCA Plot with", k, "Clusters"), x = "PC1", y = "PC2") +
+  theme_minimal()
+
+```
+
+```{r}
+# Extract List of patients in each cluster
+
+clust1_IDs <- names(clusters[clusters == 1])
+clust2_IDs <- names(clusters[clusters == 2])
+
+# Save patient names to lists
+list_of_patients <- list(
+  Cluster1 = clust1_IDs,
+  Cluster2 = clust2_IDs
+)
+```
+
+
+
+### Survival Analysis on Clinical Data to compare Patients in the Clusters
+
+### Mutation ANalysis on Patients in Clusters to Find Mutational Patterns 
+
+### DESeq2 Analysis on Expression Data to compare the clusters
+
+- volcano plot to showcase the results of DESeq
 
 
 
