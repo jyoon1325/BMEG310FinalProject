@@ -651,8 +651,132 @@ ggsurvplot(
 
 ### DESeq2 Analysis on Expression Data to compare the clusters
 
-- volcano plot to showcase the results of DESeq
+```{r}
+# prepare expression data for DESeq
 
+de_RNA <- preprocessed_RNA
+# Setup DESeq Object and run DESeq Pipeline 
+colData <- clusters
+countData <- de_RNA
+
+# Set up Cluster numbers as factor for DESeq
+colData$Cluster <-  as.factor(colData$Cluster)
+
+# Create DESeq data set
+dds <- DESeqDataSetFromMatrix(countData =  countData,
+                              colData = colData,
+                              design = ~ Cluster)
+
+```
+
+```{r}
+dds <- DESeq(dds)
+```
+
+```{r}
+dds
+
+```
+```{r}
+#building DESeq results table
+res <- results(dds, contrast = c("Cluster", "1", "2"))
+res_df <- as.data.frame(res)
+
+#summary 
+summary(res)
+```
+```{r}
+#Create Volcano Plot
+
+# Function 1: Prepare DESeq2 results for plotting
+# Convert DESeqResults object to data.frame
+prepare_res_for_plot <- function(res) {
+  res_df
+  # rownames as a gene column
+  res_df$hgnc_symbol <- rownames(res_df) 
+
+  return(res_df)
+}
+
+# Function 2: Volcano plot function
+volcplot <- function(data, padj_threshold = 0.05, log2Fold_threshold = 1, plot_title = 'Volcano Plot', plot_subtitle = NULL) {
+  # Set the fold-change thresholds
+  neg_log2fc <- -log2Fold_threshold
+  pos_log2fc <- log2Fold_threshold
+
+  # Replace NA values
+  data$padj[is.na(data$padj)] <- 1
+  data$log2FoldChange[is.na(data$log2FoldChange)] <- 0
+
+  # Add log2fc_threshold column
+  data$log2fc_threshold <- ifelse(
+    data$log2FoldChange >= pos_log2fc & data$padj <= padj_threshold, 'up',
+    ifelse(data$log2FoldChange <= neg_log2fc & data$padj <= padj_threshold, 'down', 'ns')
+  )
+
+
+  # Count up, down, and unchanged genes
+  up_genes <- sum(data$log2fc_threshold == 'up')
+  down_genes <- sum(data$log2fc_threshold == 'down')
+  unchanged_genes <- sum(data$log2fc_threshold == 'ns')
+
+  # Generate legend labels
+  legend_labels <- c(
+    paste0('Up: ', up_genes),
+    paste0('Not significant: ', unchanged_genes),
+    paste0('Down: ', down_genes)
+  )
+
+  # Calculate x-axis limits
+  x_axis_limits <- ceiling(max(abs(data$log2FoldChange)))
+
+  # Define plot colors
+  plot_colors <- c(
+    'up' = 'firebrick1',
+    'ns' = 'gray',
+    'down' = 'dodgerblue1'
+  )
+
+  # Create the plot
+  plot <- ggplot(data) +
+    geom_point(
+      aes(x = log2FoldChange, y = -log10(padj), color = log2fc_threshold),
+      alpha = 0.25,
+      size = 1.5
+    ) +
+    geom_vline(xintercept = c(neg_log2fc, pos_log2fc), linetype = 'dashed') +
+    geom_hline(yintercept = -log10(padj_threshold), linetype = 'dashed') +
+    scale_x_continuous(
+      'log2(FC)',
+      limits = c(-x_axis_limits, x_axis_limits)
+    ) +
+    scale_color_manual(
+      values = plot_colors,
+      labels = legend_labels
+    ) +
+    labs(
+      color = paste('log2Fold:', log2Fold_threshold, ', padj', expression("\u2264"), padj_threshold),
+      title = plot_title,
+      subtitle = plot_subtitle
+    ) +
+    theme_bw(base_size = 14) +
+    theme(
+      aspect.ratio = 1,
+      axis.text = element_text(color = 'black'),
+    )
+  
+  return(plot)
+}
+
+# Generate the volcano plot
+volcplot(
+  data = res_df,
+  padj_threshold = 0.05,
+  log2Fold_threshold = 1,
+  plot_title = "Volcano Plot for DESeq2 Results",
+  plot_subtitle = "Comparison: hoxa1_kd vs control_sirna"
+)
+```
 
 
 
