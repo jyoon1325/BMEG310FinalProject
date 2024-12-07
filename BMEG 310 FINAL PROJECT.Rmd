@@ -454,11 +454,41 @@ list_of_patients <- list(
 
 
 ### Survival Analysis on Clinical Data to compare Patients in the Clusters
+####Kaplan-Meier Analysis by Clusters
+```{r}
+#add cluster information to the clinical data
+unq_patient_df <- unq_patient_df %>%
+  mutate(Cluster = clusters$Cluster[match(PATIENT_ID, rownames(clusters))])
 
+#missing clusters?
+unq_patient_df <- unq_patient_df %>%
+  filter(!is.na(Cluster))
+
+#survival model based on clusters
+fit_clusters <- survfit(Surv(overall_survival, deceased) ~ Cluster, data = unq_patient_df)
+
+#Kaplan-Meier Analysis by Clusters
+ggsurvplot(
+  fit_clusters, 
+  data = unq_patient_df, 
+  pval = TRUE,                        
+  risk.table = TRUE,                  
+  risk.table.col = "strata",          
+  risk.table.height = 0.3,            
+  title = "Kaplan-Meier Survival Analysis by Cluster",
+  xlab = "Time", 
+  ylab = "Survival Probability",
+)
+```
+
+```{r}
+
+```
 
 
 
 ### Mutation ANalysis on Patients in Clusters to Find Mutational Patterns 
+
 
 ### DESeq2 Analysis on Expression Data to compare the clusters
 
