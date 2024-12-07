@@ -454,7 +454,7 @@ list_of_patients <- list(
 
 
 ### Survival Analysis on Clinical Data to compare Patients in the Clusters
-####Kaplan-Meier Analysis by Clusters
+####Kaplan-Meier Analysis of Clusters by Survival
 ```{r}
 #add cluster information to the clinical data
 unq_patient_df <- unq_patient_df %>%
@@ -467,7 +467,7 @@ unq_patient_df <- unq_patient_df %>%
 #survival model based on clusters
 fit_clusters <- survfit(Surv(overall_survival, deceased) ~ Cluster, data = unq_patient_df)
 
-#Kaplan-Meier Analysis by Clusters
+#Kaplan-Meier Analysis of Clusters by Survival
 ggsurvplot(
   fit_clusters, 
   data = unq_patient_df, 
@@ -475,13 +475,107 @@ ggsurvplot(
   risk.table = TRUE,                  
   risk.table.col = "strata",          
   risk.table.height = 0.3,            
-  title = "Kaplan-Meier Survival Analysis by Cluster",
+  title = "Kaplan-Meier Analysis of Clusters by Survival",
   xlab = "Time", 
   ylab = "Survival Probability",
 )
 ```
 
+####Kaplan-Meier Analysis of Clusters by Gender
 ```{r}
+#survival model by gender within clusters
+fit_gender_cluster <- survfit(Surv(overall_survival, deceased) ~ SEX + Cluster, data = unq_patient_df)
+
+#Kaplan-Meier plot
+ggsurvplot(
+  fit_gender_cluster, 
+  data = unq_patient_df, 
+  pval = TRUE, 
+  risk.table = TRUE, 
+  risk.table.col = "strata", 
+  risk.table.height = 0.3,
+  facet.by = "Cluster",               #separate plots for each cluster (hehe looks pretty)
+  title = "Kaplan-Meier Analysis of Clusters by Gender",
+  xlab = "Time", 
+  ylab = "Survival Probability"
+)
+```
+
+####Kaplan-Meier Analysis of Clusters by Tumor stage
+```{r}
+#Simplify tumor stage for analysis
+unq_patient_df <- unq_patient_df %>%
+  mutate(tumor_stage = gsub("[abc]$", "", AJCC_PATHOLOGIC_TUMOR_STAGE))
+
+#survival model by tumor stage within clusters
+fit_tumor_stage_cluster <- survfit(Surv(overall_survival, deceased) ~ tumor_stage + Cluster, data = unq_patient_df)
+
+#kaplan-Meier plot
+ggsurvplot(
+  fit_tumor_stage_cluster, 
+  data = unq_patient_df, 
+  pval = TRUE, 
+  risk.table = TRUE, 
+  risk.table.col = "strata", 
+  risk.table.height = 0.3,
+  facet.by = "Cluster",
+  title = "Kaplan-Meier Analysis of Clusters by Tumor stage",
+  xlab = "Time", 
+  ylab = "Survival Probability"
+)
+
+```
+####Kaplan-Meier Analysis of Clusters by Race
+```{r}
+#Simplify Group races
+unq_patient_df <- unq_patient_df %>%
+  mutate(race_group = ifelse(RACE %in% c("white", "asian", "black or african american"), RACE, "others"))
+
+#survival model by race within clusters
+fit_race_cluster <- survfit(Surv(overall_survival, deceased) ~ race_group + Cluster, data = unq_patient_df)
+
+#Kaplan-Meier plot
+ggsurvplot(
+  fit_race_cluster, 
+  data = unq_patient_df, 
+  pval = TRUE, 
+  risk.table = TRUE, 
+  risk.table.col = "strata", 
+  risk.table.height = 0.3,
+  facet.by = "Cluster",
+  title = "Kaplan-Meier Analysis of Clusters by Race",
+  xlab = "Time", 
+  ylab = "Survival Probability"
+)
+
+```
+
+####Kaplan-Meier Analysis of Clusters by Age
+```{r}
+#categorize age groups
+unq_patient_df <- unq_patient_df %>%
+  mutate(age_group = case_when(
+    AGE < 50 ~ "<50",
+    AGE >= 50 & AGE < 65 ~ "50-65",
+    AGE >= 65 ~ "65+"
+  ))
+
+#survival model by age group within clusters
+fit_age_group_cluster <- survfit(Surv(overall_survival, deceased) ~ age_group + Cluster, data = unq_patient_df)
+
+#Kaplan-Meier plot
+ggsurvplot(
+  fit_age_group_cluster, 
+  data = unq_patient_df, 
+  pval = TRUE, 
+  risk.table = TRUE, 
+  risk.table.col = "strata", 
+  risk.table.height = 0.3,
+  facet.by = "Cluster",
+  title = "Kaplan-Meier Analysis of Clusters by Age",
+  xlab = "Time", 
+  ylab = "Survival Probability"
+)
 
 ```
 
