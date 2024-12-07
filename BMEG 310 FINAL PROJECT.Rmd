@@ -580,6 +580,71 @@ ggsurvplot(
 ```
 
 
+####Kaplan-Meier Analysis of Clusters by sex
+```{r}
+#model by SEX within clusters
+fit_sex_cluster <- survfit(Surv(overall_survival, deceased) ~ SEX + Cluster, data = unq_patient_df)
+
+# Kaplan-Meier plot
+ggsurvplot(
+  fit_sex_cluster, 
+  data = unq_patient_df, 
+  pval = TRUE, 
+  risk.table = TRUE, 
+  risk.table.col = "strata", 
+  risk.table.height = 0.3,
+  facet.by = "Cluster",
+  title = "Kaplan-Meier Analysis of Clusters by sex",
+  xlab = "Time", 
+  ylab = "Survival Probability"
+)
+
+```
+
+####Kaplan-Meier Analysis of Clusters by Weight Group
+```{r}
+#model by weight group within clusters
+fit_weight_group_cluster <- survfit(Surv(overall_survival, deceased) ~ weight_group + Cluster, data = unq_patient_df)
+
+#Kaplan-Meier plot
+ggsurvplot(
+  fit_weight_group_cluster, 
+  data = unq_patient_df, 
+  pval = TRUE, 
+  risk.table = TRUE, 
+  risk.table.col = "strata", 
+  risk.table.height = 0.3,
+  facet.by = "Cluster",
+  title = "Kaplan-Meier Analysis of Clusters by Weight Group",
+  xlab = "Time", 
+  ylab = "Survival Probability"
+)
+
+```
+
+####Kaplan-Meier Analysis of Clusters by Genetic Ancestry
+```{r}
+#model by genetic ancestry within clusters
+fit_genetic_ancestry_cluster <- survfit(Surv(overall_survival, deceased) ~ GENETIC_ANCESTRY_LABEL + Cluster, data = unq_patient_df)
+
+# Kaplan-Meier plot
+ggsurvplot(
+  fit_genetic_ancestry_cluster, 
+  data = unq_patient_df, 
+  pval = TRUE, 
+  risk.table = TRUE, 
+  risk.table.col = "strata", 
+  risk.table.height = 0.3,
+  facet.by = "Cluster",
+  title = "Kaplan-Meier Analysis of Clusters by Weight Group",
+  xlab = "Time", 
+  ylab = "Survival Probability"
+)
+
+```
+
+
+
 
 ### Mutation ANalysis on Patients in Clusters to Find Mutational Patterns 
 
