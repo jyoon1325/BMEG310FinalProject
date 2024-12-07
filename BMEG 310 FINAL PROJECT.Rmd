@@ -414,7 +414,8 @@ plot(hc, main = "Hierarchical Clustering of Samples", xlab = "", sub = "")
 ```{r}
 #Cut the Dendrogram into Clusters
 k <- 2
-clusters <- cutree(hc, k = k)
+clusters <- as.data.frame(cutree(hc, k=k))
+colnames(clusters) <- "Cluster"
 
 table(clusters)
 ```
@@ -424,7 +425,7 @@ table(clusters)
 transposed_RNA <- t(top_RNA)  #transpose
 pca <- prcomp(transposed_RNA, scale = TRUE)
 
-pca_df <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Cluster = factor(clusters))
+pca_df <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], Cluster = factor(clusters$Cluster), PATIENT_ID = rownames(clusters))
 
 #put in labels
 pca_df$PATIENT_ID <- colnames(top_RNA)
