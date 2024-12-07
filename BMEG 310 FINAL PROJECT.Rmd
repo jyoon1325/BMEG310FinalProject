@@ -114,6 +114,9 @@ RNA_df <- RNA.data[,-1]
 
 #rename columns to match patient id naming convention of other data sets
 colnames(RNA_df)<-substr(colnames(RNA_df),9,12)
+```
+
+```{r}
 
 #find unique patients
 unique_patients<-unique(patient_df$PATIENT_ID)
@@ -133,38 +136,25 @@ unq_RNA_ID<-RNA_df[, colnames(RNA_df)%in% common_patients]
 
 #add back the first column (X) from the RNA data frame
 RNA_df$X<-RNA.data$X[match(rownames(RNA_df), rownames(RNA.data))] 
+ 
+```
 
-#Take out censored patients
+### Pre-Processing
 
-censored_patients <-  unq_patient_df %>%
-  filter(PFS_STATUS == "0:CENSORED") %>%
-  pull(PATIENT_ID)
-
-unq_patient_df<-unq_patient_df[!unq_patient_df$PATIENT_ID %in% censored_patients,]
-
-unq_mutations_df <-  unq_mutations_df[!unq_mutations_df$Tumor_Sample_Barcode %in% censored_patients,]
-
-RNA_df <- RNA_df[, !colnames(RNA_df) %in% censored_patients]
-
-
-unq_mutations_df$IMPACT <- as.character(unq_mutations_df$IMPACT)
-
-#Take out Low impact mutations
-filtered_mutations <- subset(unq_mutations_df, IMPACT != "LOW")
-
-
-unique(filtered_mutations$IMPACT)
+```{r}
+#Take out Low impact mutations, intron and synonymous variants
+filtered_mutations <- subset(unq_mutations_df,
+                             ((unq_mutations_df$IMPACT != "LOW") & (unq_mutations_df$Consequence != "intron_variant") 
+                              & (unq_mutations_df$Consequence != "synonymous_variant")))
 
 ```
 Summaries
 ```{r}
 #summary(unq_patient_df)
 #summary(filtered_mutations)
-#summary(unq_RNA_ID)
+#summary(RNA_df)
 
 ```
-
-
 
 
 
@@ -176,8 +166,6 @@ Analysis:
 3. Expression Data
 
 _______________________________________________________________________________________________________________________________________
-
-
 
 
 
@@ -357,208 +345,10 @@ ggsurvplot(fit_age,
 
 
 
-_______________________________________________________________________________________________________________________________________
-Mutation data:
-1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc) 
-2. Pick the top 20 or most frequently mutated genes from this matrix.  
-3. Perform clustering on the resulting mutation matrix Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
-4. Take the clusters of patients and do (a) DE analysis on all genes (not just top 500), (b) do pathway analysis on the DE genes that pass the adjusted p-value threshold (not just the top 20 genes) to see if specific pathways are hit, (c) see if outcome data between patient clusters is different, (d) see if any other clinical data is different when you compare patient clusters, (e) explore the correlation between the patient clusters that you have got from mutation and expression data - how much overlap do you see between the patient clusters?
-_______________________________________________________________________________________________________________________________________
 
-1. Build a gene-patient matrix that contains mutation data. Within this matrix, "1" represents whether there is a mutation in a given gene and given patient and "0" represents no mutation. Note, when building this matrix, you can take into account the type of mutations (e.g., synonymous, non-synonymous, etc)
-```{r}
-#filtered_mutations for processing without modifying the original fitlered data
-filtered_mutations_copy <- filtered_mutations
 
-#specific mutation types
-valid_mutation_types <- c("missense_variant", "nonsense_variant", "frameshift_variant")
-filtered_mutations_processed <- filtered_mutations_copy[filtered_mutations_copy$Consequence %in% valid_mutation_types, ]
 
-#get unique Gene (Hugo_Symbol) and Patient (Tumor_Sample_Barcode) pairs
-gene_patient_data <- unique(filtered_mutations_processed[, c("Hugo_Symbol", "Tumor_Sample_Barcode")])
 
-#binary column ( 1= mutation )
-gene_patient_data$mutated <- 1
 
-#gene-patient matrix
-gene_patient_matrix <- reshape2::dcast(
-  gene_patient_data,
-  Hugo_Symbol ~ Tumor_Sample_Barcode,
-  value.var = "mutated",
-  fill = 0
-)
-head(gene_patient_matrix)
-
-
-```
-
-2. Pick the top 20 or most frequently mutated genes from this matrix.  
-```{r}
-#total number of mutations for each gene
-gene_patient_numeric <- as.matrix(gene_patient_matrix[, -1])  
-rownames(gene_patient_numeric) <- gene_patient_matrix$Hugo_Symbol
-
-#number of mutations across patients
-gene_mutation_counts <- rowSums(gene_patient_numeric)
-
-#mutation counts to the matrix
-gene_patient_matrix$Mutation_Counts <- gene_mutation_counts
-
-#sort by mutation counts in descending order
-sorted_genes <- gene_patient_matrix[order(-gene_patient_matrix$Mutation_Counts), ]
-
-#top 20 most frequently mutated genes
-top_20_genes <- sorted_genes[1:20, ]
-
-top_20_genes
-
-
-```
-
-3. Perform clustering on the resulting mutation matrix Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
-```{r}
-
-#mutation matrix for clustering (top 20 genes only)
-top_20_matrix <- as.matrix(top_20_genes[, -c(1, ncol(top_20_genes))])
-rownames(top_20_matrix) <- top_20_genes$Hugo_Symbol
-
-#hierarchical clustering
-dist_matrix <- dist(top_20_matrix, method = "binary")
-
-#clustering with Ward
-hc_ward <- hclust(dist_matrix, method = "ward.D")
-
-#clustering with Ward.D2
-hc_ward_d2 <- hclust(dist_matrix, method = "ward.D2")
-
-#Plot dendrograms
-par(mfrow = c(1, 2))  # Set up a side-by-side layout
-plot(hc_ward, main = "Hierarchical Clustering (Ward)", xlab = "", sub = "", cex = 0.8)
-plot(hc_ward_d2, main = "Hierarchical Clustering (Ward.D2)", xlab = "", sub = "", cex = 0.8)
-
-```
-
-
-
-
-4a. Take the clusters of patients and do (a) DE analysis on all genes (not just top 500)
-
-```{r}
-
-# Load required library
-library(DESeq2)
-
-# Use the filtered mutation matrix
-# Assume `gene_patient_matrix` is the mutation data with patients as columns and genes as rows
-# Ensure columns are patients, rows are genes, and all data is numeric (0/1)
-
-# Prepare mutation count data (top 20 genes or full dataset)
-mutation_counts <- as.matrix(gene_patient_matrix[, -c(1, ncol(gene_patient_matrix))])  # Exclude Hugo_Symbol and Mutation_Counts
-rownames(mutation_counts) <- gene_patient_matrix$Hugo_Symbol  # Set rownames as gene symbols
-
-# Ensure patient IDs are consistent between clustering and mutation matrix
-valid_patients <- intersect(colnames(mutation_counts), names(cluster_assignments))
-
-# Subset mutation counts matrix and cluster assignments
-mutation_counts <- mutation_counts[, valid_patients, drop = FALSE]
-cluster_labels <- cluster_assignments[valid_patients]
-
-# Create DESeq2 dataset
-dds <- DESeqDataSetFromMatrix(
-  countData = mutation_counts,
-  colData = data.frame(cluster = as.factor(cluster_labels)),
-  design = ~ cluster
-)
-
-# Run DESeq2 analysis
-dds <- DESeq(dds)
-res <- results(dds, alpha = 0.05)  # Adjusted p-value threshold of 0.05
-
-# Extract significantly differentially mutated genes
-significant_genes <- res[which(res$padj < 0.05), ]
-
-# View significant genes
-head(significant_genes)
-
-```
-
-
-
-
-```{r}
-# Ensure filtered_mutations contains valid mutation data
-filtered_mutations <- filtered_mutations[filtered_mutations$Consequence %in% c("missense_variant", "nonsense_variant", "frameshift_variant"), ]
-
-# Ensure clusters align with patients
-filtered_mutations$Cluster <- clusters_ward[match(filtered_mutations$Tumor_Sample_Barcode, names(clusters_ward))]
-
-na.omit(filtered_mutations$Cluster)
-
-
-# Ensure consistent barcodes and filter matrix
-mutation_matrix <- table(filtered_mutations$Hugo_Symbol, filtered_mutations$Tumor_Sample_Barcode)
-mutation_matrix <- as.data.frame.matrix(mutation_matrix)
-mutation_matrix[mutation_matrix > 0] <- 1
-
-# Add cluster information
-mutation_matrix <- mutation_matrix[, common_barcodes]
-mutation_matrix <- cbind(Cluster = clusters_ward[common_barcodes], mutation_matrix)
-
-# Check dimensions and structure
-dim(mutation_matrix)
-head(mutation_matrix)
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-_________________________________________________________________________________________________________________________________
-Expression data:
-1. Normalize expression data using DEseq2. This was explained and included in the lab document. 
-2. Pick the top n (e.g., 500, 1000, ...) most variable genes. This could be done before step 1 or after step 1. 
-3. Perform clustering on the resulting expression matrix. Perhaps try ward and ward.D2 linkage methods if you see narrow clusters.
-4. Take the clusters of patients and do (a) DE analysis on all genes (not just top 500), (b) do pathway analysis on the DE genes that pass the adjusted p-value threshold (not just the top 20 genes) to see if specific pathways are hit, (c) see if outcome data between the patient clusters is different, (d) see if any other clinical data is different when you compare patient clusters, (e) see if patient clusters are enriched with any type of mutation data.   
-_________________________________________________________________________________________________________________________________
-```{r}
-
-```
 
 
