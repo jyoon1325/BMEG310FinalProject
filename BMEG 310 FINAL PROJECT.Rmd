@@ -777,9 +777,6 @@ volcplot(
 ```
 
 
-
-
-
 #Effects of transformations on variance to get heat map
 
 
@@ -799,7 +796,7 @@ head(kegg.sets.hs, 3)
 
 
 foldchanges = res$log2FoldChange
-names(foldchanges) = $entrez
+names(foldchanges) = res$entrez
 head(foldchanges)
 
 
