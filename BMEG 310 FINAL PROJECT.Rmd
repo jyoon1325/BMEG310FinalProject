@@ -81,6 +81,9 @@ library (dplyr)
 library(TCGAbiolinks)
 #BiocManager::install("edgeR")
 library(edgeR)
+#BiocManager::install("ComplexHeatmap")
+library(ComplexHeatmap)
+library(circlize)
 
 ```
 
@@ -152,7 +155,6 @@ filtered_mutations <- subset(unq_mutations_df,
 ```
 
 
-#Analysis
 _______________________________________________________________________________________________________________________________________
 
 Analysis:
@@ -165,43 +167,36 @@ ________________________________________________________________________________
 
 
 
-##Clinical Data:
+#Clinical Data Analysis:
 _______________________________________________________________________________________________________________________________________
 Clinical Data:
 1. Explore clinical data wrt the distribution based on various variable/attributes such as age, stage, survival, etc 
 _______________________________________________________________________________________________________________________________________
 
-####Age Distribution
+###Age Distribution
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE)) +
   geom_histogram(binwidth = 5, fill = "blue", color = "black", alpha = 0.7) +
   labs(title = "Age Distribution", x = "Age", y = "Count") +
   theme_minimal()
 ```
-####cancer stage Distribution
-```{r}
-ggplot(unq_patient_df, aes(x = AGE, fill = OS_STATUS)) +
-  geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
-  labs(title = "Age Distribution by Overall Survival Status", x = "Age", y = "Count", fill = "Overall Survival Status") +
-  theme_minimal()
 
-```
 
-####Age vs Overall Survival
+###Age vs Overall Survival
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = OS_STATUS)) +
   geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
   labs(title = "Age Distribution by Overall Survival", x = "Age", y = "Count", fill = "Overall Survival") +
   theme_minimal()
 ```
-####Age vs Progression-Free Survival (PFS) Status
+###Age vs Progression-Free Survival (PFS) Status
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = PFS_STATUS)) +
   geom_histogram(binwidth = 5, position = "dodge", alpha = 0.7) +
   labs(title = "Age Distribution by Progression-Free Survival Status", x = "Age", y = "Count", fill = "Progression-Free Survival Status") +
   theme_minimal()
 ```
-####Age Distribution with Boxplot Grouped by Tumor Stage
+###Age Distribution with Boxplot Grouped by Tumor Stage
 ```{r}
 ggplot(unq_patient_df, aes(x = AJCC_PATHOLOGIC_TUMOR_STAGE, y = AGE, fill = AJCC_PATHOLOGIC_TUMOR_STAGE)) +
   geom_boxplot(alpha = 0.7) +
@@ -209,7 +204,7 @@ ggplot(unq_patient_df, aes(x = AJCC_PATHOLOGIC_TUMOR_STAGE, y = AGE, fill = AJCC
   theme_minimal() +
   theme(legend.position = "none")
 ```
-####Survival Distribution by Age
+###Age Distribution by Disease-Specific Survival Status
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = DSS_STATUS)) +
   geom_histogram(binwidth = 5, position = "stack", alpha = 0.7) +
@@ -217,8 +212,9 @@ ggplot(unq_patient_df, aes(x = AGE, fill = DSS_STATUS)) +
   theme_minimal()
 ```
 
-##Survival analysis
-###Prepare Data
+#Survival analysis
+
+##Prepare Data
 ```{r}
 #survival data
 unq_patient_df <- unq_patient_df %>%
@@ -230,7 +226,7 @@ unq_patient_df <- unq_patient_df %>%
   )
 ```
 
-###Kaplan-Meier Analysis by Gender
+##Kaplan-Meier Analysis by Gender
 ```{r}
 #fit survival model for gender
 fit_gender <- survfit(Surv(overall_survival, deceased) ~ SEX, data = unq_patient_df)
@@ -239,7 +235,7 @@ fit_gender <- survfit(Surv(overall_survival, deceased) ~ SEX, data = unq_patient
 ggsurvplot(fit_gender, data = unq_patient_df, pval = TRUE, risk.table = TRUE, risk.table.col = "strata", risk.table.height = 0.3)
 ```
 
-###Kaplan-Meier Analysis by Weight
+##Kaplan-Meier Analysis by Weight
 ```{r}
 # categorize patients by weight
 unq_patient_df <- unq_patient_df %>%
@@ -272,7 +268,7 @@ ggsurvplot(fit_weight,
 ```
 
 
-###Kaplan-Meier Analysis by Tumor Stage
+##Kaplan-Meier Analysis by Tumor Stage
 ```{r}
 # remove sub-stages of AJCC_PATHOLOGIC_TUMOR_STAGE
 unq_patient_df <- unq_patient_df %>%
@@ -291,7 +287,7 @@ ggsurvplot(fit_stage,
            title = "Survival by Tumor Stage")
 
 ```
-###Kaplan-Meier Analysis by race
+##Kaplan-Meier Analysis by race
 ```{r}
 #Group races 
   #"white", "asian", "black", and "others"...?
@@ -311,7 +307,7 @@ ggsurvplot(fit_race,
            title = "Survival by Race Group")
 
 ```
-###Kaplan-Meier Survival by Age Group
+##Kaplan-Meier Analysis by Age Group
 ```{r}
 # age groups
 unq_patient_df <- unq_patient_df %>%
@@ -343,7 +339,7 @@ ggsurvplot(fit_age,
 
 
 
-## Create Clusters Using Expression Data
+#Create Clusters Using Expression Data
 
 ### Pre-Processing 
 
@@ -453,7 +449,7 @@ list_of_patients <- list(
 
 
 
-### Survival Analysis on Clinical Data to compare Patients in the Clusters
+#Survival Analysis on Clinical Data to compare Patients in the Clusters
 ####Kaplan-Meier Analysis of Clusters by Survival
 ```{r}
 #add cluster information to the clinical data
@@ -646,10 +642,10 @@ ggsurvplot(
 
 
 
-### Mutation ANalysis on Patients in Clusters to Find Mutational Patterns 
+#Mutation ANalysis on Patients in Clusters to Find Mutational Patterns 
  
 
-### DESeq2 Analysis on Expression Data to compare the clusters
+#DESeq2 Analysis on Expression Data to compare the clusters
 
 ```{r}
 # prepare expression data for DESeq
@@ -778,6 +774,84 @@ volcplot(
 )
 ```
 
+#oncoplot
+```{r}
+# Step 1: Prepare the Oncoplot Matrix
+# Clean up mutation types
+filtered_mutations$Variant_Classification <- as.character(filtered_mutations$Variant_Classification)
+filtered_mutations$Variant_Classification[filtered_mutations$Variant_Classification == ""] <- "Other"
+
+# Create Oncoplot Matrix
+oncomat <- dcast(
+  data = filtered_mutations,
+  formula = Hugo_Symbol ~ Tumor_Sample_Barcode,
+  value.var = "Variant_Classification",
+  fun.aggregate = function(x) {
+    if (length(x) > 1) {
+      return("Multi_Hit")
+    }
+    return(ifelse(length(x) == 0, "None", unique(x)))
+  },
+  fill = "None"
+)
+
+rownames(oncomat) <- oncomat$Hugo_Symbol
+oncomat <- oncomat[, -1]
+
+# Step 2: Fix Mutation Types and Define Colors
+mutation_types <- unique(as.vector(oncomat))
+mutation_types <- mutation_types[mutation_types != ""]
+
+# Define colors dynamically
+mutation_colors <- setNames(
+  colorRampPalette(c("blue", "red", "green", "purple", "orange"))(length(mutation_types)),
+  mutation_types
+)
+
+# Define default graphic functions
+alter_fun <- list(
+  background = function(x, y, w, h) {
+    grid.rect(x, y, w, h, gp = gpar(fill = "#E6E6E6", col = NA))
+  }
+)
+
+# Add a graphic function for each mutation type
+for (mutation in mutation_types) {
+  alter_fun[[mutation]] <- function(x, y, w, h) {
+    grid.circle(x, y, r = min(unit.c(w, h)) / 2, gp = gpar(fill = mutation_colors[[mutation]], col = NA))
+  }
+}
+
+# Step 3: Annotate Columns
+column_annotation <- HeatmapAnnotation(
+  Cluster = clusters$Cluster[colnames(oncomat)],
+  col = list(Cluster = c("Cluster 1" = "skyblue", "Cluster 2" = "pink"))
+)
+
+# Step 4: Generate and Draw Oncoplot
+onco_plot <- oncoPrint(
+  oncomat,
+  alter_fun = alter_fun,
+  col = mutation_colors,
+  row_names_side = "left",
+  show_column_names = TRUE,
+  top_annotation = column_annotation,
+  heatmap_legend_param = list(title = "Mutation Types", at = names(mutation_colors))
+)
+
+# Step 5: Draw the Oncoplot
+draw(onco_plot, heatmap_legend_side = "right", annotation_legend_side = "right")
+
+
+```
+
+
+
+#Effects of transformations on variance to get heat map
+
+
+
+#Pathway Analysis
 
 
 
