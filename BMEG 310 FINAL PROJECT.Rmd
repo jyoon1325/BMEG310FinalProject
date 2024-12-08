@@ -62,7 +62,9 @@ library(ggrepel)
 library(AnnotationDbi)
 library(org.Hs.eg.db)
 library(pathview)
+#install.packages("gage")
 library(gage)
+#install.packages("gageData")
 library(gageData)
 
 
@@ -623,7 +625,7 @@ ggsurvplot(
 #model by genetic ancestry within clusters
 fit_genetic_ancestry_cluster <- survfit(Surv(overall_survival, deceased) ~ GENETIC_ANCESTRY_LABEL + Cluster, data = unq_patient_df)
 
-# Kaplan-Meier plot
+#Kaplan-Meier plot
 ggsurvplot(
   fit_genetic_ancestry_cluster, 
   data = unq_patient_df, 
@@ -774,76 +776,7 @@ volcplot(
 )
 ```
 
-#oncoplot
-```{r}
-# Step 1: Prepare the Oncoplot Matrix
-# Clean up mutation types
-filtered_mutations$Variant_Classification <- as.character(filtered_mutations$Variant_Classification)
-filtered_mutations$Variant_Classification[filtered_mutations$Variant_Classification == ""] <- "Other"
 
-# Create Oncoplot Matrix
-oncomat <- dcast(
-  data = filtered_mutations,
-  formula = Hugo_Symbol ~ Tumor_Sample_Barcode,
-  value.var = "Variant_Classification",
-  fun.aggregate = function(x) {
-    if (length(x) > 1) {
-      return("Multi_Hit")
-    }
-    return(ifelse(length(x) == 0, "None", unique(x)))
-  },
-  fill = "None"
-)
-
-rownames(oncomat) <- oncomat$Hugo_Symbol
-oncomat <- oncomat[, -1]
-
-# Step 2: Fix Mutation Types and Define Colors
-mutation_types <- unique(as.vector(oncomat))
-mutation_types <- mutation_types[mutation_types != ""]
-
-# Define colors dynamically
-mutation_colors <- setNames(
-  colorRampPalette(c("blue", "red", "green", "purple", "orange"))(length(mutation_types)),
-  mutation_types
-)
-
-# Define default graphic functions
-alter_fun <- list(
-  background = function(x, y, w, h) {
-    grid.rect(x, y, w, h, gp = gpar(fill = "#E6E6E6", col = NA))
-  }
-)
-
-# Add a graphic function for each mutation type
-for (mutation in mutation_types) {
-  alter_fun[[mutation]] <- function(x, y, w, h) {
-    grid.circle(x, y, r = min(unit.c(w, h)) / 2, gp = gpar(fill = mutation_colors[[mutation]], col = NA))
-  }
-}
-
-# Step 3: Annotate Columns
-column_annotation <- HeatmapAnnotation(
-  Cluster = clusters$Cluster[colnames(oncomat)],
-  col = list(Cluster = c("Cluster 1" = "skyblue", "Cluster 2" = "pink"))
-)
-
-# Step 4: Generate and Draw Oncoplot
-onco_plot <- oncoPrint(
-  oncomat,
-  alter_fun = alter_fun,
-  col = mutation_colors,
-  row_names_side = "left",
-  show_column_names = TRUE,
-  top_annotation = column_annotation,
-  heatmap_legend_param = list(title = "Mutation Types", at = names(mutation_colors))
-)
-
-# Step 5: Draw the Oncoplot
-draw(onco_plot, heatmap_legend_side = "right", annotation_legend_side = "right")
-
-
-```
 
 
 
@@ -852,6 +785,43 @@ draw(onco_plot, heatmap_legend_side = "right", annotation_legend_side = "right")
 
 
 #Pathway Analysis
+```{r}
+library(gageData)
+
+data(kegg.sets.hs)
+data(sigmet.idx.hs)
+
+# Focus on signaling and metabolic pathways only
+kegg.sets.hs = kegg.sets.hs[sigmet.idx.hs]
+
+# Examine the first 3 pathways
+head(kegg.sets.hs, 3)
+
+
+foldchanges = res$log2FoldChange
+names(foldchanges) = $entrez
+head(foldchanges)
+
+
+# Get the results
+keggres = gage(foldchanges, gsets=kegg.sets.hs)
+
+
+pathview(gene.data=foldchanges, pathway.id="hsa04110")
+
+
+
+## Focus on top 5 upregulated pathways here for demo purposes only
+keggrespathways <- rownames(keggres$greater)[1:5]
+
+# Extract the 8 character long IDs part of each string
+keggresids = substr(keggrespathways, start=1, stop=8)
+keggresids
+
+
+pathview(gene.data=foldchanges, pathway.id=keggresids, species="hsa")
+
+```
 
 
 
