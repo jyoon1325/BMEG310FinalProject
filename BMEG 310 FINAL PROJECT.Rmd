@@ -436,6 +436,210 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = Cluster)) +
 
 ```
 
+
+
+
+#### Frequency of Gene Muation Comparison Between Clusters
+
+```{r}
+#split clustered patients into lists
+cluster_pat <- split(rownames(clusters), clusters$Cluster)
+
+clust1_pat <- cluster_pat[[1]] #cluster 1 patients
+clust2_pat <- cluster_pat[[2]] #cluster 2 patients
+```
+
+```{r}
+#split mutation data into sets based on patients in each cluster
+clust1_mut <- filtered_mutations[filtered_mutations$Tumor_Sample_Barcode %in% clust1_pat,]
+clust2_mut <- filtered_mutations[filtered_mutations$Tumor_Sample_Barcode %in% clust2_pat,]
+```
+
+```{r}
+
+#Finding the top 20 most frequently mutated genes in Cluster 1
+
+clust1_genes_freq <- as.data.frame(table(clust1_mut$Hugo_Symbol))
+
+clust1_genes_ordered <- clust1_genes_freq[order(-clust1_genes_freq$Freq),]
+
+ggplot(data = clust1_genes_ordered[1:20,], aes(x = Var1, y = Freq)) +
+  geom_col()+ #bar chart 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+ #tilt text to make legible
+  scale_x_discrete( limits = clust1_genes_ordered[1:20,]$Var1) #to retain new order
+```
+
+```{r}
+
+#Finding the top 20 most frequently mutated genes in Cluster 2
+
+clust2_genes_freq <- as.data.frame(table(clust2_mut$Hugo_Symbol))
+
+clust2_genes_ordered <- clust2_genes_freq[order(-clust2_genes_freq$Freq),]
+
+ggplot(data = clust2_genes_ordered[1:20,], aes(x = Var1, y = Freq)) +
+  geom_col()+ #bar chart 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+ #tilt text to make legible
+  scale_x_discrete( limits = clust2_genes_ordered[1:20,]$Var1) #to retain new order
+```
+Find whether there is a meaningful difference in genes mutated between the clusters. 
+
+```{r}
+# Normalize Mutation Frequencies (to account for difference in cluster sizes)
+
+# Normalize mutation frequencies for cluster 1
+clust1_genes_ordered$Normalized_Freq <- 
+  clust1_genes_ordered$Freq / 266
+
+# Normalize mutation frequencies for cluster 2
+clust2_genes_ordered$Normalized_Freq <- 
+  clust2_genes_ordered$Freq / 105
+
+```
+
+```{r}
+
+#combine top genes from each cluster for comparison
+
+# Add a cluster identifier to each data frame
+clust1_genes_ordered$Cluster <- "Cluster 1"
+clust2_genes_ordered$Cluster <- "Cluster 2"
+
+# Combine the top 15 genes from both clusters
+top_genes_combined <- rbind(clust1_genes_ordered[1:15,], clust2_genes_ordered[1:15,])
+
+#plot
+ggplot(top_genes_combined, aes(x = Var1, y = Normalized_Freq, fill = Cluster)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Normalized Mutation Frequencies by Cluster", 
+       x = "Gene", y = "Normalized Frequency")
+
+#we are interested in the genes with a significant mutational frequency difference between the two clusters
+```
+#### Repeat the Process for Chromosome
+
+```{r}
+# Frequency of mutations by chromosome in Cluster 1
+clust1_chrom_freq <- as.data.frame(table(clust1_mut$Chromosome))
+
+# Order chromosomes by frequency
+clust1_chrom_ordered <- clust1_chrom_freq[order(-clust1_chrom_freq$Freq),]
+
+# Plot the top 20 mutated chromosomes in Cluster 1
+ggplot(data = clust1_chrom_ordered[1:20,], aes(x = Var1, y = Freq)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_discrete(limits = clust1_chrom_ordered[1:20,]$Var1) +
+  labs(title = "Top 20 Mutated Chromosomes in Cluster 1", x = "Chromosome", y = "Frequency")
+```
+```{r}
+# Frequency of mutations by chromosome in Cluster 2
+clust2_chrom_freq <- as.data.frame(table(clust2_mut$Chromosome))
+
+# Order chromosomes by frequency
+clust2_chrom_ordered <- clust2_chrom_freq[order(-clust2_chrom_freq$Freq),]
+
+# Plot the top 20 mutated chromosomes in Cluster 2
+ggplot(data = clust2_chrom_ordered[1:20,], aes(x = Var1, y = Freq)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_discrete(limits = clust2_chrom_ordered[1:20,]$Var1) +
+  labs(title = "Top 20 Mutated Chromosomes in Cluster 2", x = "Chromosome", y = "Frequency")
+
+```
+
+```{r}
+# Normalize mutation frequencies for Cluster 1
+clust1_chrom_ordered$Normalized_Freq <- clust1_chrom_ordered$Freq / 266
+
+# Normalize mutation frequencies for Cluster 2
+clust2_chrom_ordered$Normalized_Freq <- clust2_chrom_ordered$Freq / 105
+
+# Add a cluster identifier to each dataframe
+clust1_chrom_ordered$Cluster <- "Cluster 1"
+clust2_chrom_ordered$Cluster <- "Cluster 2"
+
+# Combine the top 15 chromosomes from both clusters
+top_chrom_combined <- rbind(clust1_chrom_ordered[1:15,], clust2_chrom_ordered[1:15,])
+
+# Plot the normalized mutation frequencies by cluster
+ggplot(top_chrom_combined, aes(x = Var1, y = Normalized_Freq, fill = Cluster)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Normalized Mutation Frequencies by Chromosome", 
+       x = "Chromosome", y = "Normalized Frequency")
+
+```
+
+#### Repeat the Process for Consequence 
+(to compare the resultant types of variants)
+
+```{r}
+# Frequency of mutation consequences in Cluster 1
+clust1_conseq_freq <- as.data.frame(table(clust1_mut$Consequence))
+
+# Order consequences by frequency
+clust1_conseq_ordered <- clust1_conseq_freq[order(-clust1_conseq_freq$Freq),]
+
+# Plot the top 20 most frequent consequences in Cluster 1
+ggplot(data = clust1_conseq_ordered[1:10,], aes(x = Var1, y = Freq)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_discrete(limits = clust1_conseq_ordered[1:10,]$Var1) +
+  labs(title = "Top 20 Mutation Consequences in Cluster 1", x = "Consequence", y = "Frequency")
+
+```
+
+```{r}
+# Frequency of mutation consequences in Cluster 2
+clust2_conseq_freq <- as.data.frame(table(clust2_mut$Consequence))
+
+# Order consequences by frequency
+clust2_conseq_ordered <- clust2_conseq_freq[order(-clust2_conseq_freq$Freq),]
+
+# Plot the top 20 most frequent consequences in Cluster 2
+ggplot(data = clust2_conseq_ordered[1:20,], aes(x = Var1, y = Freq)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_discrete(limits = clust2_conseq_ordered[1:20,]$Var1) +
+  labs(title = "Top 20 Mutation Consequences in Cluster 2", x = "Consequence", y = "Frequency")
+
+```
+
+```{r}
+# Normalize mutation frequencies for Cluster 1
+clust1_conseq_ordered$Normalized_Freq <- clust1_conseq_ordered$Freq / 266
+
+# Normalize mutation frequencies for Cluster 2
+clust2_conseq_ordered$Normalized_Freq <- clust2_conseq_ordered$Freq / 105
+
+# Add a cluster identifier to each dataframe
+clust1_conseq_ordered$Cluster <- "Cluster 1"
+clust2_conseq_ordered$Cluster <- "Cluster 2"
+
+# Combine the top 15 consequences from both clusters
+top_conseq_combined <- rbind(clust1_conseq_ordered[1:10,], clust2_conseq_ordered[1:10,])
+
+# Plot the normalized mutation frequencies by cluster
+ggplot(top_conseq_combined, aes(x = Var1, y = Normalized_Freq, fill = Cluster)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Normalized Mutation Consequences by Cluster", 
+       x = "Consequence", y = "Normalized Frequency")
+
+```
+Observation: Cluster one had more missense variants. Cluster 1 had more downstream gene variants, while Cluster 2 had more upstream gene variants.
+
+
+
+
+
+
+
+
+
+
 ```{r}
 # Extract List of patients in each cluster
 
@@ -777,8 +981,22 @@ volcplot(
 ```
 
 
-#Effects of transformations on variance to get heat map
+```{r}
+# retrieve all significant genes
 
+genes.significant <- which(!is.na(res$padj) & 
+                 res$padj < 0.05 & 
+                 abs(res$log2FoldChange) > 1)
+
+resSig <- subset(res, padj < 0.05)
+# Get the indices for top 20 upregulated and downregulated genes
+genes.top.upreg <- order(resSig$log2FoldChange,decreasing = TRUE)[1:20]
+genes.top.downreg <- order(resSig$log2FoldChange,decreasing = FALSE)[1:20]
+
+# Bind the two lists of genes into a single vector
+genes.top <- c(genes.top.upreg, genes.top.downreg)
+
+```
 
 
 #Pathway Analysis
