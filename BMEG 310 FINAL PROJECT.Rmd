@@ -1009,9 +1009,6 @@ data(sigmet.idx.hs)
 # Focus on signaling and metabolic pathways only
 kegg.sets.hs = kegg.sets.hs[sigmet.idx.hs]
 
-# Examine the first 3 pathways
-head(kegg.sets.hs, 3)
-
 
 foldchanges = res$log2FoldChange
 names(foldchanges) = res$entrez
@@ -1020,10 +1017,6 @@ head(foldchanges)
 
 # Get the results
 keggres = gage(foldchanges, gsets=kegg.sets.hs)
-
-
-pathview(gene.data=foldchanges, pathway.id="hsa04110")
-
 
 
 ## Focus on top 5 upregulated pathways here for demo purposes only
