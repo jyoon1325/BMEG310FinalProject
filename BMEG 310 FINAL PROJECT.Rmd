@@ -997,6 +997,121 @@ genes.top
 ```
 
 
+```{r}
+#Find Cluster-specific genes
+
+#Cluster 1 DE genes
+clust1_DE_genes <- rownames(res)[!is.na(res$padj) &
+                                res$padj < 0.05 &
+                                res$log2FoldChange > 1]
+#Cluster 2 DE genes
+cluster2_DE_genes <- rownames(res)[!is.na(res$padj) &
+                                res$padj < 0.05 &
+                                res$log2FoldChange < -1]
+
+#Compare with Global DEGs
+
+cluster1_global <- intersect(clust1_DE_genes, genes.significant)
+cluster2_global <- intersect(cluster2_DE_genes, genes.significant)
+
+# Extract normalized counts
+normalized_counts <- counts(dds, normalized = TRUE)
+
+# Subset for cluster1-specific genes
+cluster1_counts <- normalized_counts[clust1_DE_genes, ]
+
+# Subset for cluster2-specific genes
+cluster2_counts <- normalized_counts[cluster2_DE_genes, ]
+
+```
+
+```{r}
+# MA plot
+plotMA(res, main = "MA Plot: Cluster 1 vs Cluster 2", alpha = 0.05)
+
+```
+
+```{r}
+#Extract Cluster-Specific top genes
+
+
+# Top 10 upregulated genes for Cluster 1
+top_genes_cluster1 <- head(rownames(res[order(res$log2FoldChange, decreasing = TRUE), ]), 10)
+
+# Top 10 upregulated genes for Cluster 2
+top_genes_cluster2 <- head(rownames(res[order(res$log2FoldChange, decreasing = FALSE), ]), 10)
+
+# Combine them into a single list of top genes
+top_genes <- c(top_genes_cluster1, top_genes_cluster2)
+
+# Get normalized counts for the top genes
+normalized_counts <- counts(dds, normalized = TRUE)
+heatmap_data <- normalized_counts[top_genes, ]
+
+
+# Add cluster information as an annotation
+annotation <- data.frame(Cluster = colData(dds)$Cluster)
+rownames(annotation) <- colnames(heatmap_data)
+
+
+# Convert normalized counts to a data frame with genes as rownames
+heatmap_data_df <- as.data.frame(heatmap_data)
+heatmap_data_df$Gene <- rownames(heatmap_data)
+
+# Melt the data frame to long format
+heatmap_data_long <- melt(heatmap_data_df, id.vars = "Gene", variable.name = "Sample", value.name = "Expression")
+
+# Add cluster information
+heatmap_data_long$Cluster <- colData(dds)$Cluster[match(heatmap_data_long$Sample, colnames(normalized_counts))]
+
+# Convert Cluster to a factor
+heatmap_data_long$Cluster <- as.factor(heatmap_data_long$Cluster)
+
+```
+```{r}
+#retrieve only top expressed genes by cluster
+
+# Calculate average expression per gene per cluster
+top_genes <- heatmap_data_long %>%
+  group_by(Gene, Cluster) %>%
+  summarise(avg_expression = mean(Expression), .groups = "drop")
+
+# Get top 10 expressed genes for each cluster
+top_10_genes_per_cluster <- top_genes %>%
+  group_by(Cluster) %>%
+  top_n(10, avg_expression) %>%  # Select the top 10 genes per cluster
+  ungroup()
+
+# Filter the original data to keep only top expressed genes for each cluster
+top_expression_data <- heatmap_data_long %>%
+  filter(Gene %in% top_10_genes_per_cluster$Gene)
+
+
+unique(top_expression_data$Gene)
+```
+
+
+```{r}
+#plot DE genes to compare between clusters
+
+#So that the gene codes are clear in the plots,
+# Modify the Gene column to keep only the relevant part by removing "ENSG0000"
+
+# Create a new df with the modified gene names
+top_expression_data_modified <- top_expression_data %>%
+  mutate(Gene = gsub("^ENSG0000", "", Gene))
+
+
+# Plot expression for each gene
+ggplot(top_expression_data_modified, aes(x = Cluster, y = Expression, fill = Cluster)) +
+  geom_boxplot() +
+  facet_wrap(~ Gene, scales = "free_y") +
+  theme_minimal() +
+  ggtitle("Expression of Top DE Genes by Cluster")
+
+```
+
+
 #Pathway Analysis
 ```{r}
 library(gageData)
