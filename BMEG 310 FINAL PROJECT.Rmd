@@ -1033,3 +1033,63 @@ pathview(gene.data=foldchanges, pathway.id=keggresids, species="hsa")
 
 
 
+```{r}
+#KEGG data
+data(kegg.sets.hs)
+data(sigmet.idx.hs)
+kegg.sets.hs <- kegg.sets.hs[sigmet.idx.hs]  # For signaling and metabolic pathways
+
+#function to run pathway analysis for a cluster
+run_pathway_analysis_top5 <- function(cluster_name, log2_fold_changes) {
+  #GAGE pathway analysis
+  keggres <- gage(log2_fold_changes, gsets = kegg.sets.hs)
+  
+  #top pathways (upregulated and downregulated)
+  top_up_pathways <- head(keggres$greater[order(keggres$greater[, "q.val"]), ], 5)
+  top_down_pathways <- head(keggres$less[order(keggres$less[, "q.val"]), ], 5)
+
+  
+  #top 5 upregulated pathways
+  if (!is.null(top_up_pathways) && nrow(top_up_pathways) > 0) {
+    for (i in 1:min(5, nrow(top_up_pathways))) {
+      top_pathway_id <- substr(rownames(top_up_pathways)[i], 1, 8)  #KEGG pathway ID
+      message("Visualizing Upregulated Pathway ", i, ": ", rownames(top_up_pathways)[i])
+      pathview(
+        gene.data = log2_fold_changes, 
+        pathway.id = top_pathway_id, 
+        species = "hsa", 
+        out.suffix = paste0("Cluster_", cluster_name, "_Upregulated_", i)
+      )
+    }
+  }
+  
+  #top 5 downregulated pathways
+  if (!is.null(top_down_pathways) && nrow(top_down_pathways) > 0) {
+    for (i in 1:min(5, nrow(top_down_pathways))) {
+      top_pathway_id <- substr(rownames(top_down_pathways)[i], 1, 8)  #KEGG pathway ID
+      message("Visualizing Downregulated Pathway ", i, ": ", rownames(top_down_pathways)[i])
+      pathview(
+        gene.data = log2_fold_changes, 
+        pathway.id = top_pathway_id, 
+        species = "hsa", 
+        out.suffix = paste0("Cluster_", cluster_name, "_Downregulated_", i)
+      )
+    }
+  }
+}
+
+#subset the expression data for each cluster
+cluster_1_data <- preprocessed_RNA[, colnames(preprocessed_RNA) %in% clust1_IDs]
+cluster_2_data <- preprocessed_RNA[, colnames(preprocessed_RNA) %in% clust2_IDs]
+
+#calculate log2 fold changes for each cluster
+cluster_1_log2fc <- rowMeans(cluster_1_data) - rowMeans(preprocessed_RNA)
+cluster_2_log2fc <- rowMeans(cluster_2_data) - rowMeans(preprocessed_RNA)
+
+#perform pathway analysis
+run_pathway_analysis_top5("Cluster_1", cluster_1_log2fc)
+run_pathway_analysis_top5("Cluster_2", cluster_2_log2fc)
+
+
+```
+
