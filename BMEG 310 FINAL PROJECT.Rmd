@@ -984,17 +984,19 @@ volcplot(
 ```{r}
 # retrieve all significant genes
 
-genes.significant <- which(!is.na(res$padj) & 
-                 res$padj < 0.05 & 
-                 abs(res$log2FoldChange) > 1)
+genes.significant <- rownames(res)[!is.na(res$padj &
+                 res$padj < 0.05 &
+                 abs(res$log2FoldChange) > 1)]
 
-resSig <- subset(res, padj < 0.05)
-# Get the indices for top 20 upregulated and downregulated genes
-genes.top.upreg <- order(resSig$log2FoldChange,decreasing = TRUE)[1:20]
-genes.top.downreg <- order(resSig$log2FoldChange,decreasing = FALSE)[1:20]
+resSig <- res[!is.na(res$padj) & res$padj < 0.05, ]
+# Get the names of top 20 upregulated and downregulated genes
+genes.top.upreg <- rownames(resSig)[order(resSig$log2FoldChange, decreasing = TRUE)[1:20]]
+genes.top.downreg <- rownames(resSig)[order(resSig$log2FoldChange, decreasing = FALSE)[1:20]]
+
 
 # Bind the two lists of genes into a single vector
 genes.top <- c(genes.top.upreg, genes.top.downreg)
+genes.top
 
 ```
 
