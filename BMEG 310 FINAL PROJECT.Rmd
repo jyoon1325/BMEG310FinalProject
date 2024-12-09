@@ -198,7 +198,7 @@ ggplot(unq_patient_df, aes(x = AGE, fill = PFS_STATUS)) +
   labs(title = "Age Distribution by Progression-Free Survival Status", x = "Age", y = "Count", fill = "Progression-Free Survival Status") +
   theme_minimal()
 ```
-###Age Distribution with Boxplot Grouped by Tumor Stage
+###Age Distribution vs Tumor Stagewith (Boxplot)
 ```{r}
 ggplot(unq_patient_df, aes(x = AJCC_PATHOLOGIC_TUMOR_STAGE, y = AGE, fill = AJCC_PATHOLOGIC_TUMOR_STAGE)) +
   geom_boxplot(alpha = 0.7) +
@@ -206,7 +206,7 @@ ggplot(unq_patient_df, aes(x = AJCC_PATHOLOGIC_TUMOR_STAGE, y = AGE, fill = AJCC
   theme_minimal() +
   theme(legend.position = "none")
 ```
-###Age Distribution by Disease-Specific Survival Status
+###Age Distribution vs Disease-Specific Survival Status
 ```{r}
 ggplot(unq_patient_df, aes(x = AGE, fill = DSS_STATUS)) +
   geom_histogram(binwidth = 5, position = "stack", alpha = 0.7) +
@@ -838,7 +838,7 @@ ggsurvplot(
   risk.table.col = "strata", 
   risk.table.height = 0.3,
   facet.by = "Cluster",
-  title = "Kaplan-Meier Analysis of Clusters by Weight Group",
+  title = "Kaplan-Meier Analysis of Clusters by  Genetic Ancestry",
   xlab = "Time", 
   ylab = "Survival Probability"
 )
@@ -846,10 +846,6 @@ ggsurvplot(
 ```
 
 
-
-
-#Mutation ANalysis on Patients in Clusters to Find Mutational Patterns 
- 
 
 #DESeq2 Analysis on Expression Data to compare the clusters
 
