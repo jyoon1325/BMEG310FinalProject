@@ -28,7 +28,7 @@ library(devtools)
 library(ggbiplot)
 library(dplyr)
 #install.packages("readxl")
-library(readxl)#read_excel
+library(readxl)
 #install.packages("ISLR")
 require(ISLR)
 #install.packages("corrplot")
@@ -86,6 +86,9 @@ library(edgeR)
 #BiocManager::install("ComplexHeatmap")
 library(ComplexHeatmap)
 library(circlize)
+#install.packages("reshape2")
+library(reshape2)
+
 
 ```
 
@@ -439,7 +442,7 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = Cluster)) +
 
 
 
-#### Frequency of Gene Muation Comparison Between Clusters
+# Frequency of Gene Muation Comparison Between Clusters
 
 ```{r}
 #split clustered patients into lists
@@ -957,7 +960,7 @@ volcplot <- function(data, padj_threshold = 0.05, log2Fold_threshold = 1, plot_t
       title = plot_title,
       subtitle = plot_subtitle
     ) +
-    theme_bw(base_size = 14) +
+    theme_bw(base_size = 10) +
     theme(
       aspect.ratio = 1,
       axis.text = element_text(color = 'black'),
@@ -976,12 +979,11 @@ volcplot(
 )
 ```
 
-
 ```{r}
 # retrieve all significant genes
 
-genes.significant <- rownames(res)[!is.na(res$padj &
-                 res$padj < 0.05 &
+genes.significant <- rownames(res)[!is.na(res$padj & 
+                 res$padj < 0.05 & 
                  abs(res$log2FoldChange) > 1)]
 
 resSig <- res[!is.na(res$padj) & res$padj < 0.05, ]
@@ -995,18 +997,16 @@ genes.top <- c(genes.top.upreg, genes.top.downreg)
 genes.top
 
 ```
-
-
 ```{r}
 #Find Cluster-specific genes
 
 #Cluster 1 DE genes
-clust1_DE_genes <- rownames(res)[!is.na(res$padj) &
-                                res$padj < 0.05 &
+clust1_DE_genes <- rownames(res)[!is.na(res$padj) & 
+                                res$padj < 0.05 & 
                                 res$log2FoldChange > 1]
 #Cluster 2 DE genes
-cluster2_DE_genes <- rownames(res)[!is.na(res$padj) &
-                                res$padj < 0.05 &
+cluster2_DE_genes <- rownames(res)[!is.na(res$padj) & 
+                                res$padj < 0.05 & 
                                 res$log2FoldChange < -1]
 
 #Compare with Global DEGs
@@ -1027,7 +1027,9 @@ cluster2_counts <- normalized_counts[cluster2_DE_genes, ]
 
 ```{r}
 # MA plot
-plotMA(res, main = "MA Plot: Cluster 1 vs Cluster 2", alpha = 0.05)
+#plotMA(res, main = "MA Plot: Cluster 1 vs Cluster 2", alpha = 0.05)
+#worked on one laptop but not in the overall. graph is included in the report. 
+#supplimental appendix figure 32
 
 ```
 
@@ -1068,6 +1070,7 @@ heatmap_data_long$Cluster <- colData(dds)$Cluster[match(heatmap_data_long$Sample
 heatmap_data_long$Cluster <- as.factor(heatmap_data_long$Cluster)
 
 ```
+
 ```{r}
 #retrieve only top expressed genes by cluster
 
